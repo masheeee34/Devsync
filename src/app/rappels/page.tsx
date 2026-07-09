@@ -3,11 +3,14 @@
 import { useState, useEffect } from 'react';
 import { Reminder, Idea } from '@/types';
 import { getStorageAdapter, logActivity } from '@/lib/storage';
+import { useIsMobile } from '@/lib/useIsMobile';
+import BottomSheet from '@/components/BottomSheet';
 
 export default function RemindersPage() {
+  const isMobile = useIsMobile();
   const [reminders, setReminders] = useState<Reminder[]>([]);
   const [ideas, setIdeas] = useState<Idea[]>([]);
-  const [showModal, setShowModal] = useState(false);
+  const [showForm, setShowForm] = useState(false);
   const [isDoneCollapsed, setIsDoneCollapsed] = useState(true);
   const [activeUser, setActiveUser] = useState<'Aymane' | 'Collaborateur'>('Aymane');
 
@@ -20,7 +23,7 @@ export default function RemindersPage() {
   const [recurrence, setRecurrence] = useState<Reminder['recurrence']>('none');
   const [ideaId, setIdeaId] = useState('');
 
-  // Subscribe to storage
+  // Subscribe to storage & FAB click event
   useEffect(() => {
     const adapter = getStorageAdapter();
     const unsubReminders = adapter.subscribeReminders((items) => setReminders(items));
@@ -31,11 +34,17 @@ export default function RemindersPage() {
       setActiveUser(savedUser);
     }
 
+    const handleFAB = () => {
+      handleOpenAdd();
+    };
+    window.addEventListener('devsync-fab-click', handleFAB);
+
     return () => {
       unsubReminders();
       unsubIdeas();
+      window.removeEventListener('devsync-fab-click', handleFAB);
     };
-  }, []);
+  }, [reminders, activeUser]);
 
   const handleOpenAdd = () => {
     setEditingId(null);
@@ -49,7 +58,7 @@ export default function RemindersPage() {
     setPriority('medium');
     setRecurrence('none');
     setIdeaId('');
-    setShowModal(true);
+    setShowForm(true);
   };
 
   const handleOpenEdit = (rem: Reminder) => {
@@ -63,11 +72,11 @@ export default function RemindersPage() {
     setPriority(rem.priority);
     setRecurrence(rem.recurrence);
     setIdeaId(rem.ideaId || '');
-    setShowModal(true);
+    setShowForm(true);
   };
 
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSave = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     if (!title.trim() || !dueDate) return;
 
     const targetDate = new Date(dueDate).toISOString();
@@ -120,7 +129,7 @@ export default function RemindersPage() {
       }
     }
 
-    setShowModal(false);
+    setShowForm(false);
   };
 
   const handleToggleDone = async (rem: Reminder) => {
@@ -137,7 +146,8 @@ export default function RemindersPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (confirm("Supprimer ce rappel ?")) {
+    const conf = confirm("Supprimer ce rappel ?");
+    if (conf) {
       const adapter = getStorageAdapter();
       await adapter.deleteReminder(id);
     }
@@ -218,7 +228,7 @@ export default function RemindersPage() {
             aria-label={rem.isDone ? "Marquer comme non fait" : "Marquer comme fait"}
           >
             {rem.isDone && (
-              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
                 <polyline points="20 6 9 17 4 12"/>
               </svg>
             )}
@@ -260,10 +270,7 @@ export default function RemindersPage() {
                 className="p-1 rounded bg-[#F7F5EF] border border-[#ECEAE3] text-[#8C8A85] hover:text-[#1B1B1B] transition-colors cursor-pointer"
                 aria-label="Modifier le rappel"
               >
-                <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <path d="M12 20h9"/>
-                  <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/>
-                </svg>
+                ✏️
               </button>
             )}
 
@@ -272,17 +279,111 @@ export default function RemindersPage() {
               className="p-1 text-[#8C8A85] hover:text-red-500 rounded hover:bg-red-50 transition-colors cursor-pointer"
               aria-label="Supprimer le rappel"
             >
-              <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <path d="M3 6h18" />
-                <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
-                <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
-              </svg>
+              ✕
             </button>
           </div>
         </div>
       </div>
     );
   };
+
+  const renderFormFields = () => (
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-1.5">
+        <label htmlFor="rem-title" className="text-[9px] font-mono uppercase tracking-wider text-[#8C8A85]">Titre</label>
+        <input
+          id="rem-title"
+          type="text"
+          placeholder="Ex: Corriger le bug Safari iOS"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          className="bg-[#F7F5EF] border border-[#ECEAE3] rounded-xl px-3.5 py-2.5 text-xs text-[#1B1B1B] placeholder-zinc-400 focus:outline-none focus:border-[#1B1B1B] transition-colors"
+          required
+        />
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <label htmlFor="rem-desc" className="text-[9px] font-mono uppercase tracking-wider text-[#8C8A85]">Description</label>
+        <textarea
+          id="rem-desc"
+          placeholder="Notes optionnelles..."
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          rows={2}
+          className="bg-[#F7F5EF] border border-[#ECEAE3] rounded-xl px-3.5 py-2.5 text-xs text-[#1B1B1B] placeholder-zinc-400 focus:outline-none focus:border-[#1B1B1B] transition-colors resize-none"
+        />
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor="rem-due" className="text-[9px] font-mono uppercase tracking-wider text-[#8C8A85]">Échéance</label>
+          <input
+            id="rem-due"
+            type="datetime-local"
+            value={dueDate}
+            onChange={(e) => setDueDate(e.target.value)}
+            className="bg-[#F7F5EF] border border-[#ECEAE3] rounded-xl px-3.5 py-2.5 text-xs text-[#1B1B1B] focus:outline-none focus:border-[#1B1B1B] transition-colors font-mono cursor-pointer"
+            required
+          />
+        </div>
+
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor="rem-priority" className="text-[9px] font-mono uppercase tracking-wider text-[#8C8A85]">Priorité</label>
+          <select
+            id="rem-priority"
+            value={priority}
+            onChange={(e) => setPriority(e.target.value as any)}
+            className="bg-[#F7F5EF] border border-[#ECEAE3] rounded-xl px-3 py-2.5 text-xs text-[#1B1B1B] focus:outline-none focus:border-[#1B1B1B] transition-colors appearance-none cursor-pointer"
+          >
+            <option value="low">Faible</option>
+            <option value="medium">Moyenne</option>
+            <option value="high">Élevée</option>
+          </select>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor="rem-recurrence" className="text-[9px] font-mono uppercase tracking-wider text-[#8C8A85]">Récurrence</label>
+          <select
+            id="rem-recurrence"
+            value={recurrence}
+            onChange={(e) => setRecurrence(e.target.value as any)}
+            className="bg-[#F7F5EF] border border-[#ECEAE3] rounded-xl px-3 py-2.5 text-xs text-[#1B1B1B] focus:outline-none focus:border-[#1B1B1B] transition-colors appearance-none cursor-pointer"
+          >
+            <option value="none">Aucune</option>
+            <option value="daily">Quotidienne</option>
+            <option value="weekly">Hebdomadaire</option>
+          </select>
+        </div>
+
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor="rem-idea" className="text-[9px] font-mono uppercase tracking-wider text-[#8C8A85]">Idée liée</label>
+          <select
+            id="rem-idea"
+            value={ideaId}
+            onChange={(e) => setIdeaId(e.target.value)}
+            className="bg-[#F7F5EF] border border-[#ECEAE3] rounded-xl px-3 py-2.5 text-xs text-[#1B1B1B] focus:outline-none focus:border-[#1B1B1B] transition-colors appearance-none cursor-pointer"
+          >
+            <option value="">Aucune</option>
+            {ideas.map((idea) => (
+              <option key={idea.id} value={idea.id}>
+                {idea.title}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      <button
+        type="button"
+        onClick={() => handleSave()}
+        className="w-full mt-2 py-3 bg-[#161616] hover:bg-black text-white font-bold text-xs rounded-full active:scale-95 transition-all cursor-pointer"
+      >
+        Enregistrer le rappel
+      </button>
+    </div>
+  );
 
   return (
     <div className="flex flex-col gap-6">
@@ -295,7 +396,7 @@ export default function RemindersPage() {
         </div>
         <button
           onClick={handleOpenAdd}
-          className="flex items-center gap-1.5 px-4.5 py-2 bg-[#161616] hover:bg-black text-white font-bold text-xs rounded-full active:scale-95 transition-all shadow-md cursor-pointer"
+          className="hidden md:flex items-center gap-1.5 px-4.5 py-2 bg-[#161616] hover:bg-black text-white font-bold text-xs rounded-full active:scale-95 transition-all shadow-md cursor-pointer"
         >
           <svg className="w-3.5 h-3.5 text-[#F2C94C]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
             <path d="M5 12h14" />
@@ -305,11 +406,42 @@ export default function RemindersPage() {
         </button>
       </div>
 
-      {/* EXACTLY ONE DARK CARD FOR CONTRAST - Summary Stats Panel */}
+      {/* Form handling (Mobile Bottom Sheet vs Desktop Modal) */}
+      {showForm && (
+        isMobile ? (
+          <BottomSheet 
+            isOpen={showForm} 
+            onClose={() => setShowForm(false)} 
+            title={editingId ? 'Modifier le rappel' : 'Planifier un rappel'}
+          >
+            {renderFormFields()}
+          </BottomSheet>
+        ) : (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 animate-in fade-in duration-150">
+            <div className="bg-white border border-[#ECEAE3] rounded-3xl p-6 w-full max-w-md shadow-2xl relative">
+              <button 
+                onClick={() => setShowForm(false)}
+                className="absolute top-4.5 right-4.5 text-[#8C8A85] p-1 cursor-pointer"
+                aria-label="Fermer"
+              >
+                ✕
+              </button>
+              <h3 className="text-xs font-bold text-[#1B1B1B] uppercase tracking-wider font-mono mb-4">
+                {editingId ? 'Modifier le rappel' : 'Planifier un rappel'}
+              </h3>
+              <form onSubmit={handleSave}>
+                {renderFormFields()}
+              </form>
+            </div>
+          </div>
+        )
+      )}
+
+      {/* Summary Stats Panel */}
       <div className="card-dark rounded-3xl p-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <span className="text-[8.5px] font-mono uppercase tracking-widest text-zinc-400 font-bold">Console de contrôle</span>
-          <h3 className="text-base font-display font-bold text-white mt-1">Vos échéances synchronisées</h3>
+          <h3 className="text-base font-display font-bold text-white mt-1">Vos échéances</h3>
           <p className="text-xs text-zinc-300 mt-1 font-medium">
             Vous avez {upcomingReminders.length} échéances à venir et {overdueReminders.length} alertes en retard.
           </p>
@@ -374,123 +506,6 @@ export default function RemindersPage() {
               {doneReminders.map((rem) => renderReminderCard(rem, false))}
             </div>
           )}
-        </div>
-      )}
-
-      {/* Add/Edit Modal */}
-      {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 animate-in fade-in duration-150">
-          <div className="bg-white border border-[#ECEAE3] rounded-3xl p-6 w-full max-w-md shadow-2xl relative">
-            <button 
-              onClick={() => setShowModal(false)}
-              className="absolute top-4.5 right-4.5 text-[#8C8A85] hover:text-[#1B1B1B] p-1 cursor-pointer"
-              aria-label="Fermer"
-            >
-              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M18 6 6 18" />
-                <path d="m6 6 12 12" />
-              </svg>
-            </button>
-
-            <h3 className="text-xs font-bold text-[#1B1B1B] uppercase tracking-wider font-mono mb-4">
-              {editingId ? 'Modifier le rappel' : 'Planifier un rappel'}
-            </h3>
-
-            <form onSubmit={handleSave} className="flex flex-col gap-4">
-              <div className="flex flex-col gap-1.5">
-                <label htmlFor="rem-title" className="text-[9px] font-mono uppercase tracking-wider text-[#8C8A85]">Titre</label>
-                <input
-                  id="rem-title"
-                  type="text"
-                  placeholder="Ex: Corriger le bug Safari iOS"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  className="bg-[#F7F5EF] border border-[#ECEAE3] rounded-xl px-3.5 py-2 text-xs text-[#1B1B1B] placeholder-zinc-400 focus:outline-none focus:border-[#1B1B1B] transition-colors"
-                  required
-                />
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                <label htmlFor="rem-desc" className="text-[9px] font-mono uppercase tracking-wider text-[#8C8A85]">Description</label>
-                <textarea
-                  id="rem-desc"
-                  placeholder="Notes optionnelles..."
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  rows={2}
-                  className="bg-[#F7F5EF] border border-[#ECEAE3] rounded-xl px-3.5 py-2 text-xs text-[#1B1B1B] placeholder-zinc-400 focus:outline-none focus:border-[#1B1B1B] transition-colors resize-none"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="flex flex-col gap-1.5">
-                  <label htmlFor="rem-due" className="text-[9px] font-mono uppercase tracking-wider text-[#8C8A85]">Échéance</label>
-                  <input
-                    id="rem-due"
-                    type="datetime-local"
-                    value={dueDate}
-                    onChange={(e) => setDueDate(e.target.value)}
-                    className="bg-[#F7F5EF] border border-[#ECEAE3] rounded-xl px-3.5 py-2 text-xs text-[#1B1B1B] focus:outline-none focus:border-[#1B1B1B] transition-colors font-mono cursor-pointer"
-                    required
-                  />
-                </div>
-
-                <div className="flex flex-col gap-1.5">
-                  <label htmlFor="rem-priority" className="text-[9px] font-mono uppercase tracking-wider text-[#8C8A85]">Priorité</label>
-                  <select
-                    id="rem-priority"
-                    value={priority}
-                    onChange={(e) => setPriority(e.target.value as any)}
-                    className="bg-[#F7F5EF] border border-[#ECEAE3] rounded-xl px-3 py-2 text-xs text-[#1B1B1B] focus:outline-none focus:border-[#1B1B1B] transition-colors appearance-none cursor-pointer"
-                  >
-                    <option value="low">Faible</option>
-                    <option value="medium">Moyenne</option>
-                    <option value="high">Élevée</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="flex flex-col gap-1.5">
-                  <label htmlFor="rem-recurrence" className="text-[9px] font-mono uppercase tracking-wider text-[#8C8A85]">Récurrence</label>
-                  <select
-                    id="rem-recurrence"
-                    value={recurrence}
-                    onChange={(e) => setRecurrence(e.target.value as any)}
-                    className="bg-[#F7F5EF] border border-[#ECEAE3] rounded-xl px-3 py-2 text-xs text-[#1B1B1B] focus:outline-none focus:border-[#1B1B1B] transition-colors appearance-none cursor-pointer"
-                  >
-                    <option value="none">Aucune</option>
-                    <option value="daily">Quotidienne</option>
-                    <option value="weekly">Hebdomadaire</option>
-                  </select>
-                </div>
-
-                <div className="flex flex-col gap-1.5">
-                  <label htmlFor="rem-idea" className="text-[9px] font-mono uppercase tracking-wider text-[#8C8A85]">Idée liée</label>
-                  <select
-                    id="rem-idea"
-                    value={ideaId}
-                    onChange={(e) => setIdeaId(e.target.value)}
-                    className="bg-[#F7F5EF] border border-[#ECEAE3] rounded-xl px-3 py-2 text-xs text-[#1B1B1B] focus:outline-none focus:border-[#1B1B1B] transition-colors appearance-none cursor-pointer"
-                  >
-                    <option value="">Aucune</option>
-                    {ideas.map((idea) => (
-                      <option key={idea.id} value={idea.id}>
-                        {idea.title}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                className="w-full mt-2 py-2.5 bg-[#161616] hover:bg-black text-white font-bold text-xs rounded-full active:scale-95 transition-all cursor-pointer"
-              >
-                Enregistrer le rappel
-              </button>
-            </form>
-          </div>
         </div>
       )}
 

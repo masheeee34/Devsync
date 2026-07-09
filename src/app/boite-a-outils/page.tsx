@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import { getDbMode } from '@/lib/auth';
 import { getSupabaseClient } from '@/lib/supabase';
+import { useIsMobile } from '@/lib/useIsMobile';
+import BottomSheet from '@/components/BottomSheet';
 
 export interface ToolboxItem {
   id: string;
@@ -48,10 +50,12 @@ const INITIAL_ITEMS: ToolboxItem[] = [
 ];
 
 export default function ToolboxPage() {
+  const isMobile = useIsMobile();
   const [items, setItems] = useState<ToolboxItem[]>([]);
   const [activeUser, setActiveUser] = useState('Aymane');
   const [dbMode, setDbMode] = useState<'local' | 'supabase'>('local');
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [showAddForm, setShowAddForm] = useState(false);
 
   // Form State
   const [type, setType] = useState<'snippet' | 'bookmark'>('snippet');
@@ -68,6 +72,16 @@ export default function ToolboxPage() {
     setActiveUser(user);
 
     fetchToolboxItems(mode);
+
+    // Connect FAB event
+    const handleFAB = () => {
+      setShowAddForm(true);
+    };
+    window.addEventListener('devsync-fab-click', handleFAB);
+
+    return () => {
+      window.removeEventListener('devsync-fab-click', handleFAB);
+    };
   }, []);
 
   const fetchToolboxItems = async (mode: 'local' | 'supabase') => {
@@ -99,8 +113,8 @@ export default function ToolboxPage() {
     }
   };
 
-  const handleAddItem = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleAddItem = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     if (!title.trim() || !content.trim()) return;
 
     const parsedTags = tagsInput
@@ -136,6 +150,7 @@ export default function ToolboxPage() {
     setTitle('');
     setContent('');
     setTagsInput('');
+    setShowAddForm(false);
   };
 
   const handleTogglePin = async (item: ToolboxItem) => {
@@ -183,6 +198,113 @@ export default function ToolboxPage() {
   const pinnedItems = items.filter((i) => i.isPinned);
   const regularItems = items.filter((i) => !i.isPinned);
 
+  const renderFormFields = () => (
+    <div className="flex flex-col gap-4 text-left">
+      <div className="grid grid-cols-2 gap-3 bg-zinc-900 border border-zinc-800 p-1.5 rounded-full self-start">
+        <button
+          type="button"
+          onClick={() => setType('snippet')}
+          className={`px-4 py-1.5 rounded-full text-[10px] font-bold transition-all cursor-pointer ${
+            type === 'snippet' ? 'bg-[#F2C94C] text-[#161616]' : 'text-zinc-400 hover:text-white'
+          }`}
+        >
+          Snippet de Code
+        </button>
+        <button
+          type="button"
+          onClick={() => setType('bookmark')}
+          className={`px-4 py-1.5 rounded-full text-[10px] font-bold transition-all cursor-pointer ${
+            type === 'bookmark' ? 'bg-[#F2C94C] text-[#161616]' : 'text-zinc-400 hover:text-white'
+          }`}
+        >
+          Lien Bookmark
+        </button>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor="tool-title" className="text-[9.5px] font-mono uppercase tracking-wider text-zinc-400 font-bold">Titre descriptif</label>
+          <input
+            id="tool-title"
+            type="text"
+            placeholder="Ex: Configuration Nginx SSL"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            className="bg-zinc-900 border border-zinc-800 rounded px-3 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-zinc-700 transition-colors font-mono"
+            required
+          />
+        </div>
+
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor="tool-tags" className="text-[9.5px] font-mono uppercase tracking-wider text-zinc-400 font-bold">Tags (séparés par virgules)</label>
+          <input
+            id="tool-tags"
+            type="text"
+            placeholder="Ex: Nginx, SSL"
+            value={tagsInput}
+            onChange={(e) => setTagsInput(e.target.value)}
+            className="bg-zinc-900 border border-zinc-800 rounded px-3 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none"
+          />
+        </div>
+      </div>
+
+      {type === 'snippet' ? (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-start">
+          <div className="sm:col-span-2 flex flex-col gap-1.5">
+            <label htmlFor="tool-code" className="text-[9.5px] font-mono uppercase tracking-wider text-zinc-400 font-bold">Contenu du Code</label>
+            <textarea
+              id="tool-code"
+              placeholder="Collez votre code ici..."
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              rows={4}
+              className="bg-zinc-900 border border-zinc-800 rounded px-3 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none resize-none"
+              required
+            />
+          </div>
+          
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="tool-lang" className="text-[9.5px] font-mono uppercase tracking-wider text-zinc-400 font-bold">Langage</label>
+            <select
+              id="tool-lang"
+              value={language}
+              onChange={(e) => setLanguage(e.target.value)}
+              className="bg-zinc-900 border border-zinc-800 text-white rounded px-3 py-2 text-xs focus:outline-none"
+            >
+              <option value="typescript">TypeScript</option>
+              <option value="javascript">JavaScript</option>
+              <option value="rust">Rust</option>
+              <option value="go">Go</option>
+              <option value="css">CSS</option>
+              <option value="bash">Bash / Shell</option>
+            </select>
+          </div>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor="tool-url" className="text-[9.5px] font-mono uppercase tracking-wider text-zinc-400 font-bold">Adresse URL du lien</label>
+          <input
+            id="tool-url"
+            type="url"
+            placeholder="https://example.com/docs"
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            className="bg-zinc-900 border border-zinc-800 rounded px-3 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-zinc-700 transition-colors font-mono"
+            required
+          />
+        </div>
+      )}
+
+      <button
+        type="button"
+        onClick={() => handleAddItem()}
+        className="px-5 py-2.5 bg-white text-black text-xs font-bold rounded-full hover:bg-zinc-200 active:scale-95 transition-all cursor-pointer self-start shadow-md"
+      >
+        Ajouter à la boîte
+      </button>
+    </div>
+  );
+
   return (
     <div className="flex flex-col gap-6 w-full max-w-4xl mx-auto">
       
@@ -192,117 +314,36 @@ export default function ToolboxPage() {
           <h2 className="text-xs font-bold tracking-wider text-[#1B1B1B] uppercase font-mono">Boîte à Outils</h2>
           <p className="text-[11px] text-[#8C8A85] mt-0.5 font-medium">Partagez vos snippets de code et favoris documentaires.</p>
         </div>
+        <button
+          onClick={() => setShowAddForm(true)}
+          className="hidden md:flex items-center gap-1.5 px-4.5 py-2 bg-[#161616] hover:bg-black text-white font-bold text-xs rounded-full active:scale-95 transition-all shadow-md cursor-pointer"
+        >
+          <span>Ajouter une ressource</span>
+        </button>
       </div>
 
-      {/* EXACTLY ONE DARK CARD FOR CONTRAST - Contribution Form */}
-      <form onSubmit={handleAddItem} className="card-dark rounded-3xl p-6 flex flex-col gap-4">
-        <div>
-          <span className="text-[8.5px] font-mono uppercase tracking-widest text-zinc-400 font-bold">Contribution</span>
-          <h3 className="text-base font-display font-bold text-white mt-1">Ajouter une ressource</h3>
-        </div>
-
-        <div className="grid grid-cols-2 gap-3 bg-zinc-900 border border-zinc-800 p-1.5 rounded-full self-start">
-          <button
-            type="button"
-            onClick={() => setType('snippet')}
-            className={`px-4 py-1.5 rounded-full text-[10px] font-bold transition-all cursor-pointer ${
-              type === 'snippet' ? 'bg-[#F2C94C] text-[#161616]' : 'text-zinc-400 hover:text-white'
-            }`}
-          >
-            Snippet de Code
-          </button>
-          <button
-            type="button"
-            onClick={() => setType('bookmark')}
-            className={`px-4 py-1.5 rounded-full text-[10px] font-bold transition-all cursor-pointer ${
-              type === 'bookmark' ? 'bg-[#F2C94C] text-[#161616]' : 'text-zinc-400 hover:text-white'
-            }`}
-          >
-            Lien Bookmark
-          </button>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="flex flex-col gap-1.5">
-            <label htmlFor="tool-title" className="text-[9.5px] font-mono uppercase tracking-wider text-zinc-400 font-bold">Titre descriptif</label>
-            <input
-              id="tool-title"
-              type="text"
-              placeholder="Ex: Configuration Nginx SSL"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              className="bg-zinc-900 border border-zinc-800 rounded px-3 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-zinc-700 transition-colors font-mono"
-              required
-            />
-          </div>
-
-          <div className="flex flex-col gap-1.5">
-            <label htmlFor="tool-tags" className="text-[9.5px] font-mono uppercase tracking-wider text-zinc-400 font-bold">Tags (séparés par virgules)</label>
-            <input
-              id="tool-tags"
-              type="text"
-              placeholder="Ex: Nginx, SSL, DevOps"
-              value={tagsInput}
-              onChange={(e) => setTagsInput(e.target.value)}
-              className="bg-zinc-900 border border-zinc-800 rounded px-3 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-zinc-700 transition-colors font-mono"
-            />
-          </div>
-        </div>
-
-        {type === 'snippet' ? (
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-start">
-            <div className="sm:col-span-2 flex flex-col gap-1.5">
-              <label htmlFor="tool-code" className="text-[9.5px] font-mono uppercase tracking-wider text-zinc-400 font-bold">Contenu du Code</label>
-              <textarea
-                id="tool-code"
-                placeholder="Collez votre code ici..."
-                value={content}
-                onChange={(e) => setContent(e.target.value)}
-                rows={4}
-                className="bg-zinc-900 border border-zinc-800 rounded px-3 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-zinc-700 transition-colors font-mono resize-none"
-                required
-              />
-            </div>
-            
-            <div className="flex flex-col gap-1.5">
-              <label htmlFor="tool-lang" className="text-[9.5px] font-mono uppercase tracking-wider text-zinc-400 font-bold">Langage</label>
-              <select
-                id="tool-lang"
-                value={language}
-                onChange={(e) => setLanguage(e.target.value)}
-                className="bg-zinc-900 border border-zinc-800 text-white rounded px-3 py-2 text-xs focus:outline-none"
-              >
-                <option value="typescript">TypeScript</option>
-                <option value="javascript">JavaScript</option>
-                <option value="rust">Rust</option>
-                <option value="go">Go</option>
-                <option value="css">CSS</option>
-                <option value="bash">Bash / Shell</option>
-              </select>
-            </div>
-          </div>
-        ) : (
-          <div className="flex flex-col gap-1.5">
-            <label htmlFor="tool-url" className="text-[9.5px] font-mono uppercase tracking-wider text-zinc-400 font-bold">Adresse URL du lien</label>
-            <input
-              id="tool-url"
-              type="url"
-              placeholder="https://example.com/docs"
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              className="bg-zinc-900 border border-zinc-800 rounded px-3 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-zinc-700 transition-colors font-mono"
-              required
-            />
-          </div>
-        )}
-
-        <button
-          type="submit"
-          className="px-5 py-2 bg-white text-black text-xs font-bold rounded-full hover:bg-zinc-200 active:scale-95 transition-all cursor-pointer self-start shadow-md"
+      {/* Contribution Form handling (BottomSheet on Mobile, inline card on Desktop) */}
+      {showAddForm && isMobile ? (
+        <BottomSheet 
+          isOpen={showAddForm} 
+          onClose={() => setShowAddForm(false)} 
+          title="Ajouter une ressource"
         >
-          Ajouter à la boîte
-        </button>
-      </form>
+          <div className="card-dark rounded-3xl p-5">
+            {renderFormFields()}
+          </div>
+        </BottomSheet>
+      ) : (
+        !isMobile && (
+          <form onSubmit={handleAddItem} className="card-dark rounded-3xl p-6 flex flex-col gap-4">
+            <div>
+              <span className="text-[8.5px] font-mono uppercase tracking-widest text-zinc-400 font-bold">Contribution</span>
+              <h3 className="text-base font-display font-bold text-white mt-1">Ajouter une ressource</h3>
+            </div>
+            {renderFormFields()}
+          </form>
+        )
+      )}
 
       {/* Pinned section */}
       {pinnedItems.length > 0 && (
@@ -354,7 +395,6 @@ export default function ToolboxPage() {
             </div>
             
             <div className="flex gap-1.5 shrink-0">
-              {/* Pin */}
               <button
                 onClick={() => handleTogglePin(item)}
                 className={`p-1 rounded bg-[#F7F5EF] border border-[#ECEAE3] hover:text-[#1B1B1B] transition-colors cursor-pointer ${
@@ -364,10 +404,9 @@ export default function ToolboxPage() {
               >
                 ★
               </button>
-              {/* Delete */}
               <button
                 onClick={() => handleDeleteItem(item.id)}
-                className="p-1 rounded bg-[#F7F5EF] border border-[#ECEAE3] text-[#8C8A85] hover:text-red-500 hover:bg-red-50 transition-colors cursor-pointer"
+                className="p-1.5 rounded bg-[#F7F5EF] border border-[#ECEAE3] text-[#8C8A85] hover:text-red-500 hover:bg-red-50 transition-colors cursor-pointer"
                 title="Supprimer"
               >
                 ✕

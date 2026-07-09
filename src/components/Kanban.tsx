@@ -1,14 +1,23 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Idea, TaskColumn } from '@/types';
 import { getStorageAdapter } from '@/lib/storage';
+import { useIsMobile } from '@/lib/useIsMobile';
+import BottomSheet from '@/components/BottomSheet';
 
 export default function Kanban() {
+  const isMobile = useIsMobile();
   const [ideas, setIdeas] = useState<Idea[]>([]);
   const [activeMobileTab, setActiveMobileTab] = useState<TaskColumn>('ideas');
-  const [showAddModal, setShowAddModal] = useState(false);
+  const [showAddForm, setShowAddForm] = useState(false);
   const [votedIds, setVotedIds] = useState<string[]>([]);
+
+  // Card swipe states
+  const [swipeCardId, setSwipeCardId] = useState<string | null>(null);
+  const [swipeOffset, setSwipeOffset] = useState(0);
+  const touchStartX = useRef(0);
+  const isSwiping = useRef(false);
 
   // Form State
   const [title, setTitle] = useState('');
@@ -16,7 +25,7 @@ export default function Kanban() {
   const [category, setCategory] = useState<Idea['category']>('frontend');
   const [author, setAuthor] = useState<Idea['author']>('Aymane');
 
-  // Subscribe to storage adapter
+  // Subscribe to adapters & FAB event
   useEffect(() => {
     const adapter = getStorageAdapter();
     const unsubscribe = adapter.subscribe((items) => {
@@ -30,11 +39,20 @@ export default function Kanban() {
       } catch (e) {}
     }
 
-    return () => unsubscribe();
+    // Connect global FAB click event (decoupled action)
+    const handleFAB = () => {
+      setShowAddForm(true);
+    };
+    window.addEventListener('devsync-fab-click', handleFAB);
+
+    return () => {
+      unsubscribe();
+      window.removeEventListener('devsync-fab-click', handleFAB);
+    };
   }, []);
 
-  const handleAddIdea = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleAddIdea = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     if (!title.trim() || !description.trim()) return;
 
     const newIdea: Idea = {
@@ -56,7 +74,7 @@ export default function Kanban() {
     setTitle('');
     setDescription('');
     setCategory('frontend');
-    setShowAddModal(false);
+    setShowAddForm(false);
   };
 
   const handleMove = async (id: string, direction: 'left' | 'right') => {
@@ -81,7 +99,8 @@ export default function Kanban() {
   };
 
   const handleDelete = async (id: string) => {
-    if (confirm("Supprimer cette idée ?")) {
+    const conf = confirm("Supprimer cette idée ?");
+    if (conf) {
       const adapter = getStorageAdapter();
       await adapter.deleteItem(id);
     }
@@ -105,6 +124,11 @@ export default function Kanban() {
     setVotedIds(nextVoted);
     localStorage.setItem('devsync-voted-ideas', JSON.stringify(nextVoted));
 
+    // Optional haptic vibration on mobile
+    if (typeof window !== 'undefined' && window.navigator?.vibrate) {
+      window.navigator.vibrate(40);
+    }
+
     const adapter = getStorageAdapter();
     await adapter.saveItem(updatedIdea);
   };
@@ -115,86 +139,140 @@ export default function Kanban() {
       .sort((a, b) => (b.votes || 0) - (a.votes || 0));
   };
 
+  // Card Touch Swipe Gestures (tactile actions)
+  const handleTouchStart = (e: React.TouchEvent, id: string) => {
+    touchStartX.current = e.touches[0].clientX;
+    setSwipeCardId(id);
+    isSwiping.current = true;
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!isSwiping.current) return;
+    const currentX = e.touches[0].clientX;
+    const deltaX = currentX - touchStartX.current;
+    
+    // Clamp swipe offset between -140px and 140px for safety
+    const clampedOffset = Math.max(-140, Math.min(140, deltaX));
+    setSwipeOffset(clampedOffset);
+  };
+
+  const handleTouchEnd = (id: string) => {
+    isSwiping.current = false;
+    
+    // Trigger Right Swipe: Vote (threshold 80px)
+    if (swipeOffset > 80) {
+      handleVote(id);
+    } 
+    // Trigger Left Swipe: Delete (threshold -80px)
+    else if (swipeOffset < -80) {
+      handleDelete(id);
+    }
+
+    setSwipeOffset(0);
+    setSwipeCardId(null);
+  };
+
   const renderCard = (idea: Idea) => {
     const isVoted = votedIds.includes(idea.id);
+    const isBeingSwiped = swipeCardId === idea.id;
+    const offset = isBeingSwiped ? swipeOffset : 0;
+
     return (
-      <div 
-        key={idea.id} 
-        className="bg-white border border-[#ECEAE3] rounded-3xl p-4.5 flex flex-col gap-3.5 hover:shadow-md transition-all duration-200"
-      >
-        {/* Card Header (Category & Votes) */}
-        <div className="flex justify-between items-center gap-2">
-          <span className="px-2.5 py-0.5 rounded-full bg-[#F7F5EF] border border-[#ECEAE3] text-[8px] font-mono uppercase tracking-wider font-semibold text-[#8C8A85]">
-            {idea.category}
-          </span>
-          <button 
-            onClick={() => handleVote(idea.id)}
-            className={`flex items-center gap-1.5 text-[9px] font-mono font-bold px-2.5 py-0.5 rounded-full border transition-all cursor-pointer ${
-              isVoted 
-                ? 'bg-[#F2C94C] border-[#F2C94C] text-[#161616]' 
-                : 'bg-[#F7F5EF] border-[#ECEAE3] text-[#8C8A85] hover:text-[#1B1B1B]'
-            }`}
-            aria-label="Voter pour cette idée"
-          >
-            <svg className="w-2.5 h-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-              <path d="m18 15-6-6-6 6"/>
-            </svg>
-            <span>{idea.votes || 0}</span>
-          </button>
-        </div>
+      <div key={idea.id} className="relative overflow-hidden rounded-3xl">
+        
+        {/* Underlay Behind Card (Visible during swipe actions) */}
+        {isBeingSwiped && Math.abs(offset) > 10 && (
+          <div className="absolute inset-0 z-0 flex items-center justify-between rounded-3xl overflow-hidden px-5">
+            {offset > 0 ? (
+              // Swipe Right -> Upvote background reveal (Yellow)
+              <div className="absolute inset-0 bg-[#FBE7A1] flex items-center justify-start pl-6 text-[#1B1B1B] font-mono text-[9px] font-bold uppercase tracking-wider">
+                ▲ Upvoter
+              </div>
+            ) : (
+              // Swipe Left -> Delete background reveal (Red)
+              <div className="absolute inset-0 bg-red-500 flex items-center justify-end pr-6 text-white font-mono text-[9px] font-bold uppercase tracking-wider">
+                🗑 Supprimer
+              </div>
+            )}
+          </div>
+        )}
 
-        {/* Title & Desc */}
-        <div>
-          <h4 className="text-xs font-display font-bold text-[#1B1B1B] leading-snug">
-            {idea.title}
-          </h4>
-          <p className="text-[11px] text-[#8C8A85] mt-1.5 leading-relaxed">
-            {idea.description}
-          </p>
-        </div>
+        {/* Card Body */}
+        <div 
+          onTouchStart={(e) => handleTouchStart(e, idea.id)}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={() => handleTouchEnd(idea.id)}
+          style={{ 
+            transform: `translateX(${offset}px)`,
+            transition: isSwiping.current && isBeingSwiped ? 'none' : 'transform 0.3s cubic-bezier(0.16, 1, 0.3, 1)' 
+          }}
+          className="bg-white border border-[#ECEAE3] rounded-3xl p-4.5 flex flex-col gap-3.5 relative z-10 hover:shadow-md transition-all duration-200"
+        >
+          {/* Card Header */}
+          <div className="flex justify-between items-center gap-2">
+            <span className="px-2.5 py-0.5 rounded-full bg-[#F7F5EF] border border-[#ECEAE3] text-[8px] font-mono uppercase tracking-wider font-semibold text-[#8C8A85]">
+              {idea.category}
+            </span>
+            <button 
+              onClick={() => handleVote(idea.id)}
+              className={`flex items-center gap-1.5 text-[9px] font-mono font-bold px-2.5 py-0.5 rounded-full border transition-all cursor-pointer h-7 active:scale-95 ${
+                isVoted 
+                  ? 'bg-[#F2C94C] border-[#F2C94C] text-[#161616]' 
+                  : 'bg-[#F7F5EF] border-[#ECEAE3] text-[#8C8A85]'
+              }`}
+              aria-label="Voter pour cette idée"
+            >
+              <svg className="w-2.5 h-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                <path d="m18 15-6-6-6 6"/>
+              </svg>
+              <span>{idea.votes || 0}</span>
+            </button>
+          </div>
 
-        {/* Footer (Author & Controls) */}
-        <div className="flex justify-between items-center mt-1 pt-3 border-t border-[#ECEAE3] text-[9.5px] font-mono">
-          <span className="flex items-center gap-1.5 text-[#8C8A85] font-semibold">
-            <div className="w-5 h-5 rounded-full bg-[#161616] text-[#F2C94C] flex items-center justify-center text-[9px] font-bold font-mono shadow-sm">
-              {idea.author.charAt(0)}
+          {/* Title & Desc */}
+          <div>
+            <h4 className="text-xs font-display font-bold text-[#1B1B1B] leading-snug">
+              {idea.title}
+            </h4>
+            <p className="text-[11px] text-[#8C8A85] mt-1.5 leading-relaxed">
+              {idea.description}
+            </p>
+          </div>
+
+          {/* Footer controls */}
+          <div className="flex justify-between items-center mt-1 pt-3 border-t border-[#ECEAE3] text-[9.5px] font-mono">
+            <span className="flex items-center gap-1.5 text-[#8C8A85] font-semibold">
+              <div className="w-5 h-5 rounded-full bg-[#161616] text-[#F2C94C] flex items-center justify-center text-[9px] font-bold font-mono shadow-sm">
+                {idea.author.charAt(0)}
+              </div>
+              {idea.author}
+            </span>
+            
+            <div className="flex items-center gap-1">
+              <button 
+                onClick={() => handleMove(idea.id, 'left')}
+                disabled={idea.column === 'ideas'}
+                className="w-7 h-7 flex items-center justify-center rounded bg-[#F7F5EF] border border-[#ECEAE3] text-[#8C8A85] disabled:opacity-20 transition-colors cursor-pointer"
+                aria-label="Déplacer vers la colonne de gauche"
+              >
+                ◀
+              </button>
+              <button 
+                onClick={() => handleMove(idea.id, 'right')}
+                disabled={idea.column === 'completed'}
+                className="w-7 h-7 flex items-center justify-center rounded bg-[#F7F5EF] border border-[#ECEAE3] text-[#8C8A85] disabled:opacity-20 transition-colors cursor-pointer"
+                aria-label="Déplacer vers la colonne de droite"
+              >
+                ▶
+              </button>
+              <button 
+                onClick={() => handleDelete(idea.id)}
+                className="w-7 h-7 flex items-center justify-center text-[#8C8A85] hover:text-red-500 rounded bg-[#F7F5EF] border border-[#ECEAE3] transition-all cursor-pointer"
+                aria-label="Supprimer"
+              >
+                ✕
+              </button>
             </div>
-            {idea.author}
-          </span>
-          
-          {/* Card actions */}
-          <div className="flex items-center gap-1">
-            <button 
-              onClick={() => handleMove(idea.id, 'left')}
-              disabled={idea.column === 'ideas'}
-              className="p-1 rounded bg-[#F7F5EF] border border-[#ECEAE3] text-[#8C8A85] hover:text-[#1B1B1B] disabled:opacity-20 disabled:pointer-events-none transition-colors cursor-pointer"
-              aria-label="Déplacer vers la colonne de gauche"
-            >
-              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="m15 18-6-6 6-6"/>
-              </svg>
-            </button>
-            <button 
-              onClick={() => handleMove(idea.id, 'right')}
-              disabled={idea.column === 'completed'}
-              className="p-1 rounded bg-[#F7F5EF] border border-[#ECEAE3] text-[#8C8A85] hover:text-[#1B1B1B] disabled:opacity-20 disabled:pointer-events-none transition-colors cursor-pointer"
-              aria-label="Déplacer vers la colonne de droite"
-            >
-              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="m9 18 6-6-6-6"/>
-              </svg>
-            </button>
-            <button 
-              onClick={() => handleDelete(idea.id)}
-              className="p-1 text-[#8C8A85] hover:text-red-500 rounded hover:bg-red-50 transition-all cursor-pointer"
-              aria-label="Supprimer l'idée"
-            >
-              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M3 6h18" />
-                <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
-                <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
-              </svg>
-            </button>
           </div>
         </div>
       </div>
@@ -207,6 +285,76 @@ export default function Kanban() {
     { id: 'completed', label: 'Terminé' },
   ];
 
+  // Forms block structure
+  const renderFormFields = () => (
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-1.5">
+        <label htmlFor="form-title" className="text-[9px] font-mono uppercase tracking-wider text-[#8C8A85]">Titre</label>
+        <input
+          id="form-title"
+          type="text"
+          placeholder="Ex: API Gateway en Rust"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          className="bg-[#F7F5EF] border border-[#ECEAE3] rounded-xl px-3.5 py-2.5 text-xs text-[#1B1B1B] placeholder-zinc-400 focus:outline-none focus:border-[#1B1B1B] transition-colors"
+          required
+        />
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor="form-category" className="text-[9px] font-mono uppercase tracking-wider text-[#8C8A85]">Catégorie</label>
+          <select
+            id="form-category"
+            value={category}
+            onChange={(e) => setCategory(e.target.value as Idea['category'])}
+            className="bg-[#F7F5EF] border border-[#ECEAE3] rounded-xl px-3 py-2.5 text-xs text-[#1B1B1B] focus:outline-none focus:border-[#1B1B1B]"
+          >
+            <option value="frontend">Frontend</option>
+            <option value="backend">Backend</option>
+            <option value="ui-ux">UI/UX Design</option>
+            <option value="r-d">R&D / Algo</option>
+            <option value="devops">DevOps</option>
+          </select>
+        </div>
+
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor="form-author" className="text-[9px] font-mono uppercase tracking-wider text-[#8C8A85]">Auteur</label>
+          <select
+            id="form-author"
+            value={author}
+            onChange={(e) => setAuthor(e.target.value as Idea['author'])}
+            className="bg-[#F7F5EF] border border-[#ECEAE3] rounded-xl px-3 py-2.5 text-xs text-[#1B1B1B] focus:outline-none focus:border-[#1B1B1B]"
+          >
+            <option value="Aymane">Aymane</option>
+            <option value="Collaborateur">Collaborateur</option>
+          </select>
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <label htmlFor="form-desc" className="text-[9px] font-mono uppercase tracking-wider text-[#8C8A85]">Description</label>
+        <textarea
+          id="form-desc"
+          placeholder="Décrivez brièvement le projet..."
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          rows={4}
+          className="bg-[#F7F5EF] border border-[#ECEAE3] rounded-xl px-3.5 py-2 text-xs text-[#1B1B1B] placeholder-zinc-400 focus:outline-none focus:border-[#1B1B1B] resize-none"
+          required
+        />
+      </div>
+
+      <button
+        type="button"
+        onClick={() => handleAddIdea()}
+        className="w-full mt-2 py-3 bg-[#161616] hover:bg-black text-white font-bold text-xs rounded-full active:scale-95 transition-all cursor-pointer"
+      >
+        Créer l&apos;idée
+      </button>
+    </div>
+  );
+
   return (
     <div className="flex flex-col gap-6">
       
@@ -216,11 +364,13 @@ export default function Kanban() {
           <h2 className="text-xs font-bold tracking-wider text-[#1B1B1B] uppercase font-mono">Boîte à Idées</h2>
           <p className="text-[11px] text-[#8C8A85] mt-0.5 font-medium">Partagez, votez et organisez vos futurs projets.</p>
         </div>
+        
+        {/* Desktop-only New Idea button (FAB covers mobile) */}
         <button
-          onClick={() => setShowAddModal(true)}
-          className="flex items-center gap-1.5 px-4.5 py-2 bg-[#161616] hover:bg-black text-white font-bold text-xs rounded-full active:scale-95 transition-all shadow-md cursor-pointer"
+          onClick={() => setShowAddForm(true)}
+          className="hidden md:flex items-center gap-1.5 px-4.5 py-2 bg-[#161616] hover:bg-black text-white font-bold text-xs rounded-full active:scale-95 transition-all shadow-md cursor-pointer"
         >
-          <svg className="w-3.5 h-3.5 text-[#F2C94C]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+          <svg className="w-3.5 h-3.5 text-[#F2C94C]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
             <path d="M5 12h14" />
             <path d="M12 5v14" />
           </svg>
@@ -228,90 +378,33 @@ export default function Kanban() {
         </button>
       </div>
 
-      {/* Modal - solid Soft-UI panel */}
-      {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 animate-in fade-in duration-150">
-          <div className="bg-white border border-[#ECEAE3] rounded-3xl p-6 w-full max-w-md shadow-2xl relative">
-            <button 
-              onClick={() => setShowAddModal(false)}
-              className="absolute top-4.5 right-4.5 text-[#8C8A85] hover:text-[#1B1B1B] p-1 cursor-pointer"
-              aria-label="Fermer"
-            >
-              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M18 6 6 18" />
-                <path d="m6 6 12 12" />
-              </svg>
-            </button>
-
-            <h3 className="text-xs font-bold text-[#1B1B1B] uppercase tracking-wider font-mono mb-4">Proposer une nouvelle idée</h3>
-            
-            <form onSubmit={handleAddIdea} className="flex flex-col gap-4">
-              <div className="flex flex-col gap-1.5">
-                <label htmlFor="modal-title" className="text-[9px] font-mono uppercase tracking-wider text-[#8C8A85]">Titre</label>
-                <input
-                  id="modal-title"
-                  type="text"
-                  placeholder="Ex: API Gateway en Rust"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  className="bg-[#F7F5EF] border border-[#ECEAE3] rounded-xl px-3.5 py-2 text-xs text-[#1B1B1B] placeholder-zinc-400 focus:outline-none focus:border-[#1B1B1B] transition-colors"
-                  required
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="flex flex-col gap-1.5">
-                  <label htmlFor="modal-category" className="text-[9px] font-mono uppercase tracking-wider text-[#8C8A85]">Catégorie</label>
-                  <select
-                    id="modal-category"
-                    value={category}
-                    onChange={(e) => setCategory(e.target.value as Idea['category'])}
-                    className="bg-[#F7F5EF] border border-[#ECEAE3] rounded-xl px-3 py-2 text-xs text-[#1B1B1B] focus:outline-none focus:border-[#1B1B1B] transition-colors appearance-none cursor-pointer"
-                  >
-                    <option value="frontend">Frontend</option>
-                    <option value="backend">Backend</option>
-                    <option value="ui-ux">UI/UX Design</option>
-                    <option value="r-d">R&D / Algo</option>
-                    <option value="devops">DevOps</option>
-                  </select>
-                </div>
-
-                <div className="flex flex-col gap-1.5">
-                  <label htmlFor="modal-author" className="text-[9px] font-mono uppercase tracking-wider text-[#8C8A85]">Auteur</label>
-                  <select
-                    id="modal-author"
-                    value={author}
-                    onChange={(e) => setAuthor(e.target.value as Idea['author'])}
-                    className="bg-[#F7F5EF] border border-[#ECEAE3] rounded-xl px-3 py-2 text-xs text-[#1B1B1B] focus:outline-none focus:border-[#1B1B1B] transition-colors appearance-none cursor-pointer"
-                  >
-                    <option value="Aymane">Aymane</option>
-                    <option value="Collaborateur">Collaborateur</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                <label htmlFor="modal-desc" className="text-[9px] font-mono uppercase tracking-wider text-[#8C8A85]">Description</label>
-                <textarea
-                  id="modal-desc"
-                  placeholder="Décrivez brièvement le projet..."
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  rows={4}
-                  className="bg-[#F7F5EF] border border-[#ECEAE3] rounded-xl px-3.5 py-2 text-xs text-[#1B1B1B] placeholder-zinc-400 focus:outline-none focus:border-[#1B1B1B] transition-colors resize-none"
-                  required
-                />
-              </div>
-
-              <button
-                type="submit"
-                className="w-full mt-2 py-2.5 bg-[#161616] hover:bg-black text-white font-bold text-xs rounded-full active:scale-95 transition-all cursor-pointer"
+      {/* Creation form handling (Mobile Bottom Sheet vs Desktop Modal) */}
+      {showAddForm && (
+        isMobile ? (
+          <BottomSheet 
+            isOpen={showAddForm} 
+            onClose={() => setShowAddForm(false)} 
+            title="Proposer une nouvelle idée"
+          >
+            {renderFormFields()}
+          </BottomSheet>
+        ) : (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/45 animate-in fade-in duration-150">
+            <div className="bg-white border border-[#ECEAE3] rounded-3xl p-6 w-full max-w-md shadow-2xl relative">
+              <button 
+                onClick={() => setShowAddForm(false)}
+                className="absolute top-4.5 right-4.5 text-[#8C8A85] p-1 cursor-pointer"
+                aria-label="Fermer"
               >
-                Créer l&apos;idée
+                ✕
               </button>
-            </form>
+              <h3 className="text-xs font-bold text-[#1B1B1B] uppercase tracking-wider font-mono mb-4">Proposer une nouvelle idée</h3>
+              <form onSubmit={handleAddIdea}>
+                {renderFormFields()}
+              </form>
+            </div>
           </div>
-        </div>
+        )
       )}
 
       {/* Segmented controls for mobile tabs */}

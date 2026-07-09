@@ -315,7 +315,7 @@ export default function ShowcaseCarousel({ limit }: { limit?: number }) {
           return (
             <div
               key={idx}
-              className="w-[280px] h-[350px] shrink-0 snap-start snap-align-start relative rounded-3xl overflow-hidden shadow-md group border border-[#ECEAE3] flex flex-col justify-end bg-[#161616]"
+              className="w-full md:w-[280px] h-[65vh] md:h-[350px] shrink-0 snap-start snap-align-start relative rounded-3xl overflow-hidden shadow-md group border border-[#ECEAE3] flex flex-col justify-end bg-[#161616]"
             >
               {/* Background preview */}
               {isGradient ? (
