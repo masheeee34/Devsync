@@ -1,0 +1,19 @@
+{
+  "name": "DevSync - Espace de Collaboration",
+  "short_name": "DevSync",
+  "description": "Portfolio et boîte à idées en temps réel pour développeurs.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#080405",
+  "theme_color": "#080405",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "icons": [
+    {
+      "src": "/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
