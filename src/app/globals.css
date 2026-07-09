@@ -122,3 +122,24 @@ body::after {
 ::-webkit-scrollbar-thumb:hover {
   background: #dcdad0;
 }
+
+/* Lenis smooth scrolling compatibility */
+html.lenis, html.lenis-scrolling {
+  scroll-behavior: auto !important;
+}
+
+html.lenis {
+  height: auto;
+}
+
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+
+.lenis.lenis-stopped {
+  overflow: hidden;
+}
+
+.lenis.lenis-scrolling iframe {
+  pointer-events: none;
+}

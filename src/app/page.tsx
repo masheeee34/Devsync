@@ -18,11 +18,43 @@ interface SpotifyTrack {
   durationMs?: number;
 }
 
+const MOCK_PLAYLIST: SpotifyTrack[] = [
+  {
+    isPlaying: true,
+    title: 'Starboy',
+    artists: 'The Weeknd, Daft Punk',
+    albumArt: 'https://i.scdn.co/image/ab67616d0000b2734718dec409e58e3ca21224da',
+    trackUrl: 'https://open.spotify.com/track/7MXV7vK0p5py2y0q655zG7',
+    progressMs: 0,
+    durationMs: 230000
+  },
+  {
+    isPlaying: true,
+    title: 'Instant Crush',
+    artists: 'Daft Punk, Julian Casablancas',
+    albumArt: 'https://i.scdn.co/image/ab67616d0000b273ca37ee26a1ec244d2d4808c7',
+    trackUrl: 'https://open.spotify.com/track/2oaK0JkH1fLz6qIq5zsiZ1',
+    progressMs: 0,
+    durationMs: 337000
+  },
+  {
+    isPlaying: true,
+    title: 'Comfort Chain',
+    artists: 'Instupendo',
+    albumArt: 'https://i.scdn.co/image/ab67616d0000b27376c6d0426b31c4f58c7349ab',
+    trackUrl: 'https://open.spotify.com/track/6U9gA7GqK2lE3uJkS6JocP',
+    progressMs: 0,
+    durationMs: 198000
+  }
+];
+
 export default function Dashboard() {
   const [activeUser, setActiveUser] = useState<'Aymane' | 'Collaborateur'>('Aymane');
   const [ideas, setIdeas] = useState<Idea[]>([]);
   const [reminders, setReminders] = useState<Reminder[]>([]);
   const [activities, setActivities] = useState<RecentActivity[]>([]);
+  
+  const mockTrackIndexRef = useRef(0);
 
   // Spotify integration states
   const [mySpotify, setMySpotify] = useState<SpotifyTrack>({ isPlaying: false });
@@ -78,6 +110,17 @@ export default function Dashboard() {
     const querySpotify = async () => {
       const spRefresh = localStorage.getItem('devsync-spotify-refresh-token');
       if (!spRefresh) return;
+
+      if (spRefresh === 'demo-refresh-token') {
+        const index = mockTrackIndexRef.current;
+        const track = MOCK_PLAYLIST[index];
+        setMySpotify({
+          ...track,
+          progressMs: 0
+        });
+        mockTrackIndexRef.current = (index + 1) % MOCK_PLAYLIST.length;
+        return;
+      }
 
       let spAccess = localStorage.getItem('devsync-spotify-access-token');
       const spExpires = Number(localStorage.getItem('devsync-spotify-token-expires') || '0');

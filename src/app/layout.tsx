@@ -61,9 +61,9 @@ export default function RootLayout({
   return (
     <html
       lang="fr"
-      className={`${satoshi.variable} ${inter.variable} h-full antialiased`}
+      className={`${satoshi.variable} ${inter.variable} antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-[#F4F3F0] text-[#1B1B1B] selection:bg-[#F2C94C]/30 selection:text-black">
+      <body className="min-h-screen flex flex-col bg-[#F4F3F0] text-[#1B1B1B] selection:bg-[#F2C94C]/30 selection:text-black">
         {/* PWA register handler */}
         <PwaRegister />
         

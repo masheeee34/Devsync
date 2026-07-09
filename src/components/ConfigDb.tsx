@@ -328,15 +328,30 @@ export default function ConfigDb() {
               </button>
             </div>
           ) : (
-            <button
-              onClick={handleConnectSpotify}
-              className="px-4.5 py-2.5 bg-[#F2C94C] text-[#1B1B1B] text-[10px] font-mono uppercase tracking-wider font-bold rounded-full hover:bg-amber-500 active:scale-95 transition-all self-start flex items-center gap-1.5 shadow-md cursor-pointer"
-            >
-              <svg className="w-3.5 h-3.5 text-black" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm4.586 14.424c-.18.295-.565.387-.86.207-2.377-1.454-5.37-1.783-8.892-.982-.336.076-.67-.135-.746-.47-.077-.337.135-.67.47-.747 3.856-.88 7.15-.506 9.815 1.13.295.18.387.563.207.862zm1.226-2.723c-.226.367-.707.487-1.074.26-2.72-1.672-6.87-2.158-10.076-1.185-.412.125-.845-.107-.97-.52-.124-.412.108-.847.52-.972 3.667-1.11 8.243-.574 11.34 1.332.367.226.488.707.26 1.075v.01zm.106-2.833C14.382 8.783 9.4 8.618 6.518 9.493c-.482.146-.988-.128-1.134-.61-.147-.483.128-.99.61-1.136 3.32-.992 8.81-.8 12.835 1.58.435.258.577.82.318 1.256-.258.436-.82.578-1.256.32z"/>
-              </svg>
-              <span>Associer Spotify</span>
-            </button>
+            <div className="flex gap-3">
+              <button
+                onClick={handleConnectSpotify}
+                className="px-4.5 py-2.5 bg-[#F2C94C] text-[#1B1B1B] text-[10px] font-mono uppercase tracking-wider font-bold rounded-full hover:bg-amber-500 active:scale-95 transition-all self-start flex items-center gap-1.5 shadow-md cursor-pointer"
+              >
+                <svg className="w-3.5 h-3.5 text-black" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm4.586 14.424c-.18.295-.565.387-.86.207-2.377-1.454-5.37-1.783-8.892-.982-.336.076-.67-.135-.746-.47-.077-.337.135-.67.47-.747 3.856-.88 7.15-.506 9.815 1.13.295.18.387.563.207.862zm1.226-2.723c-.226.367-.707.487-1.074.26-2.72-1.672-6.87-2.158-10.076-1.185-.412.125-.845-.107-.97-.52-.124-.412.108-.847.52-.972 3.667-1.11 8.243-.574 11.34 1.332.367.226.488.707.26 1.075v.01zm.106-2.833C14.382 8.783 9.4 8.618 6.518 9.493c-.482.146-.988-.128-1.134-.61-.147-.483.128-.99.61-1.136 3.32-.992 8.81-.8 12.835 1.58.435.258.577.82.318 1.256-.258.436-.82.578-1.256.32z"/>
+                </svg>
+                <span>Associer Spotify</span>
+              </button>
+              <button
+                onClick={() => {
+                  localStorage.setItem('devsync-spotify-refresh-token', 'demo-refresh-token');
+                  localStorage.setItem('devsync-spotify-access-token', 'demo-access-token');
+                  localStorage.setItem('devsync-spotify-token-expires', String(Date.now() + 3600 * 1000));
+                  setSpotifyRefreshToken('demo-refresh-token');
+                  setSpotifyConnected(true);
+                  alert("Mode Démo Spotify activé !");
+                }}
+                className="px-4.5 py-2.5 bg-white border border-[#ECEAE3] text-[#1B1B1B] text-[10px] font-mono uppercase tracking-wider font-bold rounded-full hover:bg-[#F7F5EF] active:scale-95 transition-all self-start shadow-sm cursor-pointer"
+              >
+                Simuler (Mode Démo)
+              </button>
+            </div>
           )}
         </div>
       </div>
