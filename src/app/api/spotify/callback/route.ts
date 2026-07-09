@@ -5,8 +5,14 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const code = searchParams.get('code');
 
+  // Get current host safely, replacing 0.0.0.0 with localhost for browser compatibility
+  const host = request.headers.get('host') || 'localhost:3000';
+  const safeHost = host.includes('0.0.0.0') ? host.replace('0.0.0.0', 'localhost') : host;
+  const proto = request.headers.get('x-forwarded-proto') || 'http';
+  const origin = `${proto}://${safeHost}`;
+
   if (!code) {
-    const redirectUrl = new URL('/config', request.url);
+    const redirectUrl = new URL('/config', origin);
     redirectUrl.searchParams.set('error', 'spotify_code_missing');
     return NextResponse.redirect(redirectUrl);
   }
@@ -35,9 +41,8 @@ export async function GET(request: NextRequest) {
       throw new Error(data.error_description || data.error);
     }
 
-    // Redirect to config with keys in URL parameters
-    // Client-side will parse them, save to local config (localStorage/cookies) and strip them from url
-    const redirectUrl = new URL('/config', request.url);
+    // Redirect to config with keys in URL parameters, resolving 0.0.0.0 to localhost
+    const redirectUrl = new URL('/config', origin);
     redirectUrl.searchParams.set('spotify_connected', 'true');
     redirectUrl.searchParams.set('refresh_token', data.refresh_token);
     redirectUrl.searchParams.set('access_token', data.access_token);
@@ -45,7 +50,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.redirect(redirectUrl);
   } catch (err: any) {
-    const redirectUrl = new URL('/config', request.url);
+    const redirectUrl = new URL('/config', origin);
     redirectUrl.searchParams.set('error', err.message || 'spotify_token_exchange_failed');
     return NextResponse.redirect(redirectUrl);
   }
