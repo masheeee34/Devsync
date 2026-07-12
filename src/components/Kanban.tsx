@@ -24,6 +24,9 @@ export default function Kanban() {
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState<Idea['category']>('frontend');
   const [author, setAuthor] = useState<Idea['author']>('Aymane');
+  const [githubRepoUrl, setGithubRepoUrl] = useState('');
+  const [projectUrl, setProjectUrl] = useState('');
+  const [formColumn, setFormColumn] = useState<TaskColumn>('ideas');
 
   // Subscribe to adapters & FAB event
   useEffect(() => {
@@ -41,6 +44,7 @@ export default function Kanban() {
 
     // Connect global FAB click event (decoupled action)
     const handleFAB = () => {
+      setFormColumn('ideas');
       setShowAddForm(true);
     };
     window.addEventListener('devsync-fab-click', handleFAB);
@@ -60,11 +64,13 @@ export default function Kanban() {
       title: title.trim(),
       description: description.trim(),
       category,
-      column: 'ideas',
+      column: formColumn,
       author,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       votes: 0,
+      githubRepoUrl: githubRepoUrl.trim() || undefined,
+      projectUrl: projectUrl.trim() || undefined,
     };
 
     const adapter = getStorageAdapter();
@@ -74,6 +80,9 @@ export default function Kanban() {
     setTitle('');
     setDescription('');
     setCategory('frontend');
+    setGithubRepoUrl('');
+    setProjectUrl('');
+    setFormColumn('ideas');
     setShowAddForm(false);
   };
 
@@ -229,6 +238,19 @@ export default function Kanban() {
             </button>
           </div>
 
+          {/* Project Preview Screenshot */}
+          {idea.projectUrl && (
+            <div className="w-full h-24 rounded-2xl overflow-hidden relative border border-[#ECEAE3] mt-0.5 select-none pointer-events-none">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img 
+                src={`https://image.thum.io/get/auth/21885-devsync/width/600/crop/800/${idea.projectUrl}`}
+                alt={idea.title}
+                className="w-full h-full object-cover"
+                loading="lazy"
+              />
+            </div>
+          )}
+
           {/* Title & Desc */}
           <div>
             <h4 className="text-xs font-display font-bold text-[#1B1B1B] leading-snug">
@@ -237,6 +259,32 @@ export default function Kanban() {
             <p className="text-[11px] text-[#8C8A85] mt-1.5 leading-relaxed">
               {idea.description}
             </p>
+            
+            {/* Project & Repository Links */}
+            {(idea.projectUrl || idea.githubRepoUrl) && (
+              <div className="flex gap-3.5 mt-2.5 pt-2.5 border-t border-[#ECEAE3]/50 flex-wrap">
+                {idea.projectUrl && (
+                  <a 
+                    href={idea.projectUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-[9.5px] font-mono text-[#F2C94C] hover:underline font-bold flex items-center gap-1 cursor-pointer"
+                  >
+                    🌐 Visiter
+                  </a>
+                )}
+                {idea.githubRepoUrl && (
+                  <a 
+                    href={idea.githubRepoUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-[9.5px] font-mono text-[#8C8A85] hover:text-[#1B1B1B] hover:underline font-bold flex items-center gap-1 cursor-pointer"
+                  >
+                    📦 GitHub
+                  </a>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Footer controls */}
@@ -332,6 +380,46 @@ export default function Kanban() {
         </div>
       </div>
 
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor="form-gh-url" className="text-[9px] font-mono uppercase tracking-wider text-[#8C8A85]">Dépôt GitHub (Optionnel)</label>
+          <input
+            id="form-gh-url"
+            type="url"
+            placeholder="https://github.com/..."
+            value={githubRepoUrl}
+            onChange={(e) => setGithubRepoUrl(e.target.value)}
+            className="bg-[#F7F5EF] border border-[#ECEAE3] rounded-xl px-3.5 py-2.5 text-xs text-[#1B1B1B] placeholder-zinc-400 focus:outline-none focus:border-[#1B1B1B] transition-colors"
+          />
+        </div>
+
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor="form-project-url" className="text-[9px] font-mono uppercase tracking-wider text-[#8C8A85]">Lien Aperçu Site (Optionnel)</label>
+          <input
+            id="form-project-url"
+            type="url"
+            placeholder="https://mon-projet.vercel.app"
+            value={projectUrl}
+            onChange={(e) => setProjectUrl(e.target.value)}
+            className="bg-[#F7F5EF] border border-[#ECEAE3] rounded-xl px-3.5 py-2.5 text-xs text-[#1B1B1B] placeholder-zinc-400 focus:outline-none focus:border-[#1B1B1B] transition-colors"
+          />
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <label htmlFor="form-column" className="text-[9px] font-mono uppercase tracking-wider text-[#8C8A85]">Colonne de destination</label>
+        <select
+          id="form-column"
+          value={formColumn}
+          onChange={(e) => setFormColumn(e.target.value as TaskColumn)}
+          className="bg-[#F7F5EF] border border-[#ECEAE3] rounded-xl px-3 py-2.5 text-xs text-[#1B1B1B] focus:outline-none focus:border-[#1B1B1B]"
+        >
+          <option value="ideas">Boîte à idées</option>
+          <option value="progress">En cours</option>
+          <option value="completed">Terminé</option>
+        </select>
+      </div>
+
       <div className="flex flex-col gap-1.5">
         <label htmlFor="form-desc" className="text-[9px] font-mono uppercase tracking-wider text-[#8C8A85]">Description</label>
         <textarea
@@ -339,7 +427,7 @@ export default function Kanban() {
           placeholder="Décrivez brièvement le projet..."
           value={description}
           onChange={(e) => setDescription(e.target.value)}
-          rows={4}
+          rows={3}
           className="bg-[#F7F5EF] border border-[#ECEAE3] rounded-xl px-3.5 py-2 text-xs text-[#1B1B1B] placeholder-zinc-400 focus:outline-none focus:border-[#1B1B1B] resize-none"
           required
         />
@@ -455,17 +543,29 @@ export default function Kanban() {
               </div>
 
               {/* Column Content */}
-              <div className="flex flex-col gap-4.5 min-h-[400px]">
-                {colIdeas.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center p-8 rounded-3xl border border-dashed border-[#ECEAE3] text-center flex-1 bg-white/30">
-                    <svg className="w-6 h-6 text-[#8C8A85] mb-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-                    </svg>
-                    <p className="text-[9px] font-mono uppercase tracking-wider text-[#8C8A85]">Aucun ticket</p>
-                  </div>
-                ) : (
-                  colIdeas.map((idea) => renderCard(idea))
-                )}
+              <div className="flex flex-col gap-4.5 min-h-[400px] justify-between">
+                <div className="flex flex-col gap-4.5">
+                  {colIdeas.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center p-8 rounded-3xl border border-dashed border-[#ECEAE3] text-center bg-white/30">
+                      <svg className="w-6 h-6 text-[#8C8A85] mb-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+                      </svg>
+                      <p className="text-[9px] font-mono uppercase tracking-wider text-[#8C8A85]">Aucun ticket</p>
+                    </div>
+                  ) : (
+                    colIdeas.map((idea) => renderCard(idea))
+                  )}
+                </div>
+
+                <button
+                  onClick={() => {
+                    setFormColumn(col.id);
+                    setShowAddForm(true);
+                  }}
+                  className="w-full py-2.5 mt-2.5 rounded-2xl border border-dashed border-[#ECEAE3] hover:border-[#1B1B1B] text-[#8C8A85] hover:text-[#1B1B1B] font-mono text-[9px] uppercase tracking-wider font-bold bg-[#F7F5EF]/30 hover:bg-white transition-all cursor-pointer text-center"
+                >
+                  + Nouveau
+                </button>
               </div>
             </div>
           );

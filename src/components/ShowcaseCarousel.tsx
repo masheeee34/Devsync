@@ -101,7 +101,11 @@ export default function ShowcaseCarousel({ limit }: { limit?: number }) {
         const headers: HeadersInit = { Accept: 'application/vnd.github.v3+json' };
         if (token) headers['Authorization'] = `token ${token}`;
 
-        const res = await fetch(`https://api.github.com/users/${ghUser}/repos?sort=updated&per_page=12`, { headers });
+        const apiUrl = token 
+          ? 'https://api.github.com/user/repos?sort=updated&per_page=12'
+          : `https://api.github.com/users/${ghUser}/repos?sort=updated&per_page=12`;
+
+        const res = await fetch(apiUrl, { headers });
         if (res.ok) {
           ghRepos = await res.json();
         }

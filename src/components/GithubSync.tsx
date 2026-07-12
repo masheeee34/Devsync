@@ -120,11 +120,16 @@ export default function GithubSync() {
         Accept: 'application/vnd.github.v3+json',
       };
 
-      if (tokenVal.trim()) {
+      const hasToken = !!tokenVal.trim();
+      if (hasToken) {
         headers['Authorization'] = `token ${tokenVal.trim()}`;
       }
 
-      const res = await fetch(`https://api.github.com/users/${user.trim()}/repos?sort=updated&per_page=15`, {
+      const apiUrl = hasToken 
+        ? 'https://api.github.com/user/repos?sort=updated&per_page=15'
+        : `https://api.github.com/users/${user.trim()}/repos?sort=updated&per_page=15`;
+
+      const res = await fetch(apiUrl, {
         headers,
       });
 
@@ -189,8 +194,10 @@ export default function GithubSync() {
         headers['Authorization'] = `token ${savedToken}`;
       }
 
+      const repoPath = repo.html_url.replace('https://github.com/', '');
+
       // Fetch readme
-      const readmeRes = await fetch(`https://api.github.com/repos/${username}/${repo.name}/readme`, { headers });
+      const readmeRes = await fetch(`https://api.github.com/repos/${repoPath}/readme`, { headers });
       if (readmeRes.ok) {
         const readmeData = await readmeRes.json();
         const decoded = atob(readmeData.content);
@@ -200,7 +207,7 @@ export default function GithubSync() {
       }
 
       // Fetch commits
-      const commitsRes = await fetch(`https://api.github.com/repos/${username}/${repo.name}/commits?per_page=5`, { headers });
+      const commitsRes = await fetch(`https://api.github.com/repos/${repoPath}/commits?per_page=5`, { headers });
       if (commitsRes.ok) {
         const commitsData = await commitsRes.json();
         setCommits(commitsData);

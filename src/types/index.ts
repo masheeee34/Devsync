@@ -10,6 +10,7 @@ export interface Idea {
   createdAt: string;
   updatedAt: string;
   githubRepoUrl?: string;
+  projectUrl?: string;
   votes: number;
 }
 
