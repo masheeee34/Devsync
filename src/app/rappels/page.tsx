@@ -44,7 +44,7 @@ export default function RemindersPage() {
       unsubIdeas();
       window.removeEventListener('devsync-fab-click', handleFAB);
     };
-  }, [reminders, activeUser]);
+  }, []);
 
   const handleOpenAdd = () => {
     setEditingId(null);
