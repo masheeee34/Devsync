@@ -409,189 +409,255 @@ export default function Kanban() {
 
     return (
       <>
-        {/* Backdrop overlay */}
+        {/* Immersive backdrop */}
         <div 
           onClick={() => setSelectedIdeaForPeek(null)}
-          className="fixed inset-0 z-45 bg-black/25 backdrop-blur-xs animate-in fade-in duration-200"
+          className="fixed inset-0 z-45 bg-[#161616]/75 backdrop-blur-xs animate-in fade-in duration-250"
         />
 
-        {/* Sliding Panel */}
-        <div className="fixed inset-y-0 right-0 z-50 w-full sm:w-[460px] bg-white border-l border-[#ECEAE3] shadow-2xl flex flex-col justify-between animate-in slide-in-from-right duration-300">
+        {/* Immersive Dual-Pane Explorer Modal */}
+        <div className="fixed inset-4 sm:inset-6 md:inset-10 z-50 bg-[#F4F3F0] border border-[#ECEAE3] rounded-3xl shadow-2xl flex flex-col md:flex-row overflow-hidden relative animate-in zoom-in-95 duration-200">
           
-          {/* Scrollable details area */}
-          <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-6">
+          {/* Close button in top corner */}
+          <button 
+            type="button"
+            onClick={() => setSelectedIdeaForPeek(null)}
+            className="absolute top-4 right-4 z-40 w-8 h-8 rounded-full bg-white border border-[#ECEAE3] text-[#1B1B1B] hover:bg-[#F7F5EF] flex items-center justify-center shadow-md cursor-pointer transition-all active:scale-90"
+            aria-label="Fermer l'explorateur"
+          >
+            ✕
+          </button>
+
+          {/* LEFT PANE: Interactive Iframe Browser Mock (65% width) */}
+          <div className="flex-1 bg-zinc-950 flex flex-col min-h-[300px] md:min-h-0 relative">
+            {selectedIdeaForPeek.projectUrl ? (
+              <>
+                {/* Browser Mock top bar */}
+                <div className="bg-[#161616] border-b border-zinc-800 px-4 py-3 flex items-center gap-3">
+                  {/* Mock browser buttons */}
+                  <div className="flex gap-1.5 shrink-0">
+                    <span className="w-2.5 h-2.5 rounded-full bg-rose-500"></span>
+                    <span className="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+                  </div>
+
+                  {/* Mock address bar */}
+                  <div className="flex-1 max-w-md mx-auto bg-zinc-900 border border-zinc-800 rounded-full px-4 py-1 text-[10px] font-mono text-zinc-400 text-center truncate select-all">
+                    {selectedIdeaForPeek.projectUrl}
+                  </div>
+                  
+                  {/* Open outer link action */}
+                  <a 
+                    href={selectedIdeaForPeek.projectUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-[9.5px] font-mono text-[#F2C94C] hover:underline font-bold shrink-0 hidden sm:inline"
+                  >
+                    Ouvrir ↗
+                  </a>
+                </div>
+
+                {/* Embedded live interactive website iframe */}
+                <div className="flex-1 relative">
+                  <iframe 
+                    src={selectedIdeaForPeek.projectUrl}
+                    className="absolute inset-0 w-full h-full border-0 bg-white"
+                    title={`Aperçu interactif de ${selectedIdeaForPeek.title}`}
+                    sandbox="allow-scripts allow-same-origin allow-forms"
+                  />
+                  
+                  {/* Float helper overlay */}
+                  <div className="absolute bottom-3 left-3 bg-[#161616]/90 border border-zinc-800 backdrop-blur text-[8.5px] font-mono font-bold text-zinc-300 px-3 py-1.5 rounded-xl pointer-events-none shadow-lg">
+                    💡 Mode Interactif : Vous pouvez vous balader et tester le site ci-dessus !
+                  </div>
+                </div>
+              </>
+            ) : (
+              // Visual mock developer view if no preview URL is available
+              <div className="flex-1 bg-gradient-to-br from-[#161616] to-[#3a3a3a] flex flex-col items-center justify-center p-8 text-center text-white relative">
+                <div className="w-16 h-16 rounded-2xl bg-zinc-900 border border-zinc-800 text-[#F2C94C] flex items-center justify-center text-3xl font-display font-extrabold mb-4 shadow-lg select-none">
+                  DS
+                </div>
+                <h3 className="text-lg font-display font-bold mb-2">{selectedIdeaForPeek.title}</h3>
+                <p className="text-xs text-zinc-400 max-w-sm mb-6">
+                  Aucun lien de démonstration en direct n&apos;est configuré pour cette idée. Renseignez le champ &quot;Site web&quot; à droite pour charger l&apos;explorateur interactif.
+                </p>
+
+                {/* Mock terminal code visual */}
+                <div className="w-full max-w-md bg-black/40 border border-zinc-800/80 rounded-2xl p-4 text-left font-mono text-[9px] text-zinc-400 shadow-md">
+                  <div className="flex gap-1.5 mb-2.5 pb-1 border-b border-zinc-800/50">
+                    <span className="w-1.5 h-1.5 rounded-full bg-zinc-700"></span>
+                    <span className="w-1.5 h-1.5 rounded-full bg-zinc-700"></span>
+                    <span className="w-1.5 h-1.5 rounded-full bg-zinc-700"></span>
+                    <span className="text-[7.5px] text-zinc-500 ml-1">terminal - git-status</span>
+                  </div>
+                  <p className="text-emerald-400">$ git status</p>
+                  <p>On branch main</p>
+                  <p>Your branch is up to date with &apos;origin/main&apos;.</p>
+                  <p className="mt-1">Changes not staged for commit:</p>
+                  <p className="text-rose-400">  (use &quot;git add &lt;file&gt;...&quot; to update what will be committed)</p>
+                  <p className="text-rose-400">  modified:   src/app/page.tsx (ideas queue)</p>
+                  <p className="text-yellow-400 mt-2">$ npm run dev --loaded</p>
+                  <p>▲ Ready in 12ms - devsync framework loaded successfully</p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* RIGHT PANE: Details fiche & editing (35% width) */}
+          <div className="w-full md:w-[380px] shrink-0 border-t md:border-t-0 md:border-l border-[#ECEAE3] bg-white flex flex-col justify-between h-full">
             
-            {/* Header controls inside Peek */}
-            <div className="flex justify-between items-center pb-3 border-b border-[#ECEAE3]">
-              <button 
-                onClick={() => setSelectedIdeaForPeek(null)}
-                className="text-[#8C8A85] hover:text-black p-1 text-sm font-mono cursor-pointer"
-              >
-                ← Fermer
-              </button>
-              
-              <div className="flex items-center gap-2">
+            {/* Scrollable meta settings */}
+            <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-5.5">
+              <div>
+                <span className="text-[8px] font-mono uppercase tracking-widest text-[#8C8A85] font-bold">Fiche Projet</span>
+                
+                {/* Title */}
+                <input 
+                  type="text" 
+                  value={selectedIdeaForPeek.title}
+                  onChange={(e) => {
+                    const updated = { ...selectedIdeaForPeek, title: e.target.value };
+                    handleUpdateIdeaFromPeek(updated);
+                  }}
+                  className="w-full text-base font-display font-bold text-[#1B1B1B] border-b border-transparent hover:border-[#ECEAE3] focus:border-[#1B1B1B] py-1.5 focus:outline-none transition-colors mt-1"
+                />
+              </div>
+
+              {/* Notion-style properties section */}
+              <div className="flex flex-col gap-4 border border-[#ECEAE3] bg-[#F7F5EF]/45 rounded-2xl p-4.5 text-xs">
+                
+                {/* Column Statut */}
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[9.5px] font-mono uppercase font-bold text-[#8C8A85] w-24">Statut</span>
+                  <select
+                    value={selectedIdeaForPeek.column}
+                    onChange={(e) => {
+                      const updated = { ...selectedIdeaForPeek, column: e.target.value as TaskColumn };
+                      handleUpdateIdeaFromPeek(updated);
+                    }}
+                    className="bg-white border border-[#ECEAE3] rounded-xl px-2.5 py-1 text-xs text-[#1B1B1B] focus:outline-none focus:border-[#1B1B1B] cursor-pointer"
+                  >
+                    <option value="ideas">Boîte à idées</option>
+                    <option value="progress">En cours</option>
+                    <option value="completed">Terminé</option>
+                  </select>
+                </div>
+
+                {/* Catégorie */}
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[9.5px] font-mono uppercase font-bold text-[#8C8A85] w-24">Catégorie</span>
+                  <select
+                    value={selectedIdeaForPeek.category}
+                    onChange={(e) => {
+                      const updated = { ...selectedIdeaForPeek, category: e.target.value as Idea['category'] };
+                      handleUpdateIdeaFromPeek(updated);
+                    }}
+                    className="bg-white border border-[#ECEAE3] rounded-xl px-2.5 py-1 text-xs text-[#1B1B1B] focus:outline-none focus:border-[#1B1B1B] cursor-pointer"
+                  >
+                    <option value="frontend">Frontend</option>
+                    <option value="backend">Backend</option>
+                    <option value="ui-ux">UI/UX Design</option>
+                    <option value="r-d">R&D / Algo</option>
+                    <option value="devops">DevOps</option>
+                  </select>
+                </div>
+
+                {/* Auteur */}
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[9.5px] font-mono uppercase font-bold text-[#8C8A85] w-24">Auteur</span>
+                  <select
+                    value={selectedIdeaForPeek.author}
+                    onChange={(e) => {
+                      const updated = { ...selectedIdeaForPeek, author: e.target.value as Idea['author'] };
+                      handleUpdateIdeaFromPeek(updated);
+                    }}
+                    className="bg-white border border-[#ECEAE3] rounded-xl px-2.5 py-1 text-xs text-[#1B1B1B] focus:outline-none focus:border-[#1B1B1B] cursor-pointer"
+                  >
+                    <option value="Aymane">Aymane</option>
+                    <option value="Collaborateur">Collaborateur</option>
+                  </select>
+                </div>
+
+                {/* Site web URL */}
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[9.5px] font-mono uppercase font-bold text-[#8C8A85] w-24">Site web</span>
+                  <input 
+                    type="url"
+                    placeholder="https://..."
+                    value={selectedIdeaForPeek.projectUrl || ''}
+                    onChange={(e) => {
+                      const updated = { ...selectedIdeaForPeek, projectUrl: e.target.value.trim() || undefined };
+                      handleUpdateIdeaFromPeek(updated);
+                    }}
+                    className="bg-white border border-[#ECEAE3] rounded-xl px-2.5 py-1 text-xs text-[#1B1B1B] focus:outline-none focus:border-[#1B1B1B] w-full max-w-[180px] font-mono text-[10.5px]"
+                  />
+                </div>
+
+                {/* GitHub URL */}
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[9.5px] font-mono uppercase font-bold text-[#8C8A85] w-24">GitHub</span>
+                  <input 
+                    type="url"
+                    placeholder="https://github.com/..."
+                    value={selectedIdeaForPeek.githubRepoUrl || ''}
+                    onChange={(e) => {
+                      const updated = { ...selectedIdeaForPeek, githubRepoUrl: e.target.value.trim() || undefined };
+                      handleUpdateIdeaFromPeek(updated);
+                    }}
+                    className="bg-white border border-[#ECEAE3] rounded-xl px-2.5 py-1 text-xs text-[#1B1B1B] focus:outline-none focus:border-[#1B1B1B] w-full max-w-[180px] font-mono text-[10.5px]"
+                  />
+                </div>
+              </div>
+
+              {/* Description */}
+              <div>
+                <label className="text-[9px] font-mono uppercase tracking-wider text-[#8C8A85] block mb-1.5 font-bold">Description du projet</label>
+                <textarea 
+                  rows={4}
+                  value={selectedIdeaForPeek.description}
+                  onChange={(e) => {
+                    const updated = { ...selectedIdeaForPeek, description: e.target.value };
+                    handleUpdateIdeaFromPeek(updated);
+                  }}
+                  className="w-full bg-[#F7F5EF]/20 border border-[#ECEAE3] rounded-2xl p-3.5 text-xs text-[#1B1B1B] focus:outline-none focus:border-[#1B1B1B] resize-none leading-relaxed"
+                />
+              </div>
+            </div>
+
+            {/* Fiche Footer (actions) */}
+            <div className="p-5 border-t border-[#ECEAE3] bg-[#F7F5EF]/60 flex flex-col gap-3">
+              <div className="flex items-center justify-between gap-2 w-full">
                 <button
+                  type="button"
                   onClick={() => handleCreateReminderFromIdea(selectedIdeaForPeek)}
-                  className="px-3 py-1.5 bg-[#F2C94C]/10 border border-[#F2C94C]/30 text-[#1B1B1B] hover:bg-[#F2C94C]/20 text-[9.5px] font-mono font-bold uppercase rounded-full cursor-pointer transition-all"
+                  className="flex-1 py-2 bg-[#161616] hover:bg-black text-[#F2C94C] hover:text-white font-bold text-[10px] font-mono uppercase rounded-full cursor-pointer transition-all active:scale-95 text-center shadow-md"
                 >
                   ⏰ Lier un Rappel
                 </button>
                 <button 
+                  type="button"
                   onClick={() => {
                     handleDelete(selectedIdeaForPeek.id);
                     setSelectedIdeaForPeek(null);
                   }}
-                  className="px-3 py-1.5 bg-red-50 border border-red-200 text-red-600 hover:bg-red-100 text-[9.5px] font-mono font-bold uppercase rounded-full cursor-pointer transition-all"
+                  className="py-2 px-4.5 bg-red-50 border border-red-200 text-red-600 hover:bg-red-100 font-bold text-[10px] font-mono uppercase rounded-full cursor-pointer transition-all active:scale-95 text-center"
                 >
                   Supprimer
                 </button>
               </div>
-            </div>
 
-            {/* Editable Title */}
-            <div>
-              <label className="text-[9px] font-mono uppercase tracking-wider text-[#8C8A85] block mb-1">Titre de l&apos;idée</label>
-              <input 
-                type="text" 
-                value={selectedIdeaForPeek.title}
-                onChange={(e) => {
-                  const updated = { ...selectedIdeaForPeek, title: e.target.value };
-                  handleUpdateIdeaFromPeek(updated);
-                }}
-                className="w-full text-lg font-display font-bold text-[#1B1B1B] border-b border-transparent hover:border-[#ECEAE3] focus:border-[#1B1B1B] py-1 focus:outline-none transition-colors"
-              />
-            </div>
-
-            {/* Notion Properties Grid */}
-            <div className="grid grid-cols-3 gap-y-4 gap-x-2 border border-[#ECEAE3] bg-[#F7F5EF]/40 rounded-2xl p-4 text-xs">
-              
-              {/* Statut/Colonne */}
-              <div className="text-[10px] font-mono uppercase tracking-wider text-[#8C8A85] flex items-center font-bold">Statut</div>
-              <div className="col-span-2">
-                <select
-                  value={selectedIdeaForPeek.column}
-                  onChange={(e) => {
-                    const updated = { ...selectedIdeaForPeek, column: e.target.value as TaskColumn };
-                    handleUpdateIdeaFromPeek(updated);
-                  }}
-                  className="bg-white border border-[#ECEAE3] rounded-lg px-2.5 py-1 text-xs text-[#1B1B1B] focus:outline-none focus:border-[#1B1B1B]"
+              <div className="flex justify-between items-center text-[9px] font-mono text-zinc-400 pt-1">
+                <span>Création : {new Date(selectedIdeaForPeek.createdAt).toLocaleDateString()}</span>
+                <button
+                  type="button"
+                  onClick={() => setSelectedIdeaForPeek(null)}
+                  className="font-bold uppercase tracking-wider hover:text-black transition-colors"
                 >
-                  <option value="ideas">Boîte à idées</option>
-                  <option value="progress">En cours</option>
-                  <option value="completed">Terminé</option>
-                </select>
-              </div>
-
-              {/* Catégorie */}
-              <div className="text-[10px] font-mono uppercase tracking-wider text-[#8C8A85] flex items-center font-bold">Catégorie</div>
-              <div className="col-span-2">
-                <select
-                  value={selectedIdeaForPeek.category}
-                  onChange={(e) => {
-                    const updated = { ...selectedIdeaForPeek, category: e.target.value as Idea['category'] };
-                    handleUpdateIdeaFromPeek(updated);
-                  }}
-                  className="bg-white border border-[#ECEAE3] rounded-lg px-2.5 py-1 text-xs text-[#1B1B1B] focus:outline-none focus:border-[#1B1B1B]"
-                >
-                  <option value="frontend">Frontend</option>
-                  <option value="backend">Backend</option>
-                  <option value="ui-ux">UI/UX Design</option>
-                  <option value="r-d">R&D / Algo</option>
-                  <option value="devops">DevOps</option>
-                </select>
-              </div>
-
-              {/* Auteur */}
-              <div className="text-[10px] font-mono uppercase tracking-wider text-[#8C8A85] flex items-center font-bold">Auteur</div>
-              <div className="col-span-2">
-                <select
-                  value={selectedIdeaForPeek.author}
-                  onChange={(e) => {
-                    const updated = { ...selectedIdeaForPeek, author: e.target.value as Idea['author'] };
-                    handleUpdateIdeaFromPeek(updated);
-                  }}
-                  className="bg-white border border-[#ECEAE3] rounded-lg px-2.5 py-1 text-xs text-[#1B1B1B] focus:outline-none focus:border-[#1B1B1B]"
-                >
-                  <option value="Aymane">Aymane</option>
-                  <option value="Collaborateur">Collaborateur</option>
-                </select>
-              </div>
-
-              {/* Lien Site */}
-              <div className="text-[10px] font-mono uppercase tracking-wider text-[#8C8A85] flex items-center font-bold font-mono">Site web</div>
-              <div className="col-span-2">
-                <input 
-                  type="url"
-                  placeholder="https://..."
-                  value={selectedIdeaForPeek.projectUrl || ''}
-                  onChange={(e) => {
-                    const updated = { ...selectedIdeaForPeek, projectUrl: e.target.value.trim() || undefined };
-                    handleUpdateIdeaFromPeek(updated);
-                  }}
-                  className="w-full bg-white border border-[#ECEAE3] rounded-lg px-2.5 py-1 text-xs text-[#1B1B1B] focus:outline-none focus:border-[#1B1B1B]"
-                />
-              </div>
-
-              {/* GitHub Repo */}
-              <div className="text-[10px] font-mono uppercase tracking-wider text-[#8C8A85] flex items-center font-bold font-mono">GitHub</div>
-              <div className="col-span-2">
-                <input 
-                  type="url"
-                  placeholder="https://github.com/..."
-                  value={selectedIdeaForPeek.githubRepoUrl || ''}
-                  onChange={(e) => {
-                    const updated = { ...selectedIdeaForPeek, githubRepoUrl: e.target.value.trim() || undefined };
-                    handleUpdateIdeaFromPeek(updated);
-                  }}
-                  className="w-full bg-white border border-[#ECEAE3] rounded-lg px-2.5 py-1 text-xs text-[#1B1B1B] focus:outline-none focus:border-[#1B1B1B]"
-                />
+                  Fermer
+                </button>
               </div>
             </div>
-
-            {/* Description editing */}
-            <div>
-              <label className="text-[9px] font-mono uppercase tracking-wider text-[#8C8A85] block mb-1">Description</label>
-              <textarea 
-                rows={3}
-                value={selectedIdeaForPeek.description}
-                onChange={(e) => {
-                  const updated = { ...selectedIdeaForPeek, description: e.target.value };
-                  handleUpdateIdeaFromPeek(updated);
-                }}
-                className="w-full bg-[#F7F5EF]/20 border border-[#ECEAE3] rounded-2xl p-3 text-xs text-[#1B1B1B] focus:outline-none focus:border-[#1B1B1B] resize-none"
-              />
-            </div>
-
-            {/* Live website preview screenshot in peek panel */}
-            {selectedIdeaForPeek.projectUrl && (
-              <div className="mt-2 flex flex-col gap-2">
-                <span className="text-[9.5px] font-mono uppercase tracking-wider text-[#8C8A85] block">Aperçu en direct</span>
-                <div className="w-full h-44 rounded-2xl overflow-hidden relative border border-[#ECEAE3] shadow-sm select-none pointer-events-none">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img 
-                    src={`https://image.thum.io/get/width/1280/crop/800/${selectedIdeaForPeek.projectUrl}`}
-                    alt="Aperçu du site"
-                    className="w-full h-full object-cover object-top"
-                    loading="lazy"
-                  />
-                </div>
-              </div>
-            )}
-
-          </div>
-
-          {/* Footer of Side Peek */}
-          <div className="p-4.5 bg-[#F7F5EF] border-t border-[#ECEAE3] flex justify-between items-center text-[10px] font-mono">
-            <span className="text-[#8C8A85]">
-              Créé le : {new Date(selectedIdeaForPeek.createdAt).toLocaleDateString()}
-            </span>
-            <button
-              onClick={() => setSelectedIdeaForPeek(null)}
-              className="px-4 py-2 bg-[#161616] text-white hover:bg-black font-bold uppercase rounded-full cursor-pointer shadow-md"
-            >
-              Fermer la fiche
-            </button>
           </div>
         </div>
       </>
