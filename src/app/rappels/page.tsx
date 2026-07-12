@@ -34,6 +34,28 @@ export default function RemindersPage() {
       setActiveUser(savedUser);
     }
 
+    // Check if redirecting from an idea to schedule a reminder
+    const pendingReminder = sessionStorage.getItem('devsync-create-reminder-from-idea');
+    if (pendingReminder) {
+      try {
+        const parsed = JSON.parse(pendingReminder);
+        setTitle(parsed.title || '');
+        setIdeaId(parsed.ideaId || '');
+        setEditingId(null);
+        setDescription('');
+        // Default to tomorrow
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        tomorrow.setHours(10, 0, 0, 0);
+        setDueDate(tomorrow.toISOString().slice(0, 16));
+        setPriority('medium');
+        setRecurrence('none');
+        setShowForm(true);
+        // Clear immediately
+        sessionStorage.removeItem('devsync-create-reminder-from-idea');
+      } catch (e) {}
+    }
+
     const handleFAB = () => {
       handleOpenAdd();
     };

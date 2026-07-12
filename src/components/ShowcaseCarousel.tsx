@@ -48,9 +48,9 @@ export default function ShowcaseCarousel({ limit }: { limit?: number }) {
         name: 'wasm-compiler-core',
         description: 'Un compilateur expérimental WebAssembly écrit en Rust pour optimiser les calculs matriciels complexes dans le navigateur.',
         stack: 'Rust / WASM',
-        liveUrl: 'https://wasm-compiler-demo.vercel.app',
+        liveUrl: 'https://www.rust-lang.org',
         repoUrl: 'https://github.com/demo/wasm-compiler-core',
-        previewImage: 'linear-gradient(135deg, #161616 0%, #3a3a3a 100%)',
+        previewImage: 'https://image.thum.io/get/width/1280/crop/800/https://www.rust-lang.org',
         updatedAt: new Date(Date.now() - 2 * 3600000).toISOString(),
         deployStatus: 'READY',
         branch: 'main',
@@ -61,9 +61,9 @@ export default function ShowcaseCarousel({ limit }: { limit?: number }) {
         name: 'nextjs-pwa-dashboard',
         description: 'Template de dashboard PWA Next.js hautement optimisé pour iOS et Android avec synchronisation temps réel.',
         stack: 'TypeScript / Next.js',
-        liveUrl: 'https://nextjs-pwa-dashboard.vercel.app',
+        liveUrl: 'https://nextjs.org',
         repoUrl: 'https://github.com/demo/nextjs-pwa-dashboard',
-        previewImage: 'linear-gradient(135deg, #F2C94C 0%, #FBE7A1 100%)',
+        previewImage: 'https://image.thum.io/get/width/1280/crop/800/https://nextjs.org',
         updatedAt: new Date(Date.now() - 86400000).toISOString(),
         deployStatus: 'BUILDING',
         branch: 'feat/spotify',
@@ -159,7 +159,7 @@ export default function ShowcaseCarousel({ limit }: { limit?: number }) {
         // Priority 1: Live site og:image (using general query) or Screenshot URL
         // Priority 2: Fallback color gradient
         const previewUrl = liveUrl 
-          ? `https://image.thum.io/get/width/600/crop/800/${liveUrl}`
+          ? `https://image.thum.io/get/width/1280/crop/800/${liveUrl}`
           : `linear-gradient(135deg, #1B1B1B 0%, #8C8A85 100%)`;
 
         return {
