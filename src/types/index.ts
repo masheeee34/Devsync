@@ -12,6 +12,7 @@ export interface Idea {
   githubRepoUrl?: string;
   projectUrl?: string;
   votes: number;
+  isPrivate?: boolean;
 }
 
 export interface GitHubRepo {

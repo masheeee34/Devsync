@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { getStorageAdapter } from '@/lib/storage';
+import { getActiveProfile } from '@/lib/auth';
 
 export interface Project {
   name: string;
@@ -15,6 +16,7 @@ export interface Project {
   branch?: string;
   commitMsg?: string;
   commitAuthor?: string;
+  isPrivate?: boolean;
 }
 
 export default function ShowcaseCarousel({ limit }: { limit?: number }) {
@@ -43,6 +45,10 @@ export default function ShowcaseCarousel({ limit }: { limit?: number }) {
   const fetchShowcaseData = async (vToken: string | null, ghUser: string | null) => {
     setLoading(true);
     
+    const adapter = getStorageAdapter();
+    const activeProfile = getActiveProfile();
+    const currentUserName = activeProfile ? activeProfile.name : 'Aymane';
+
     // Demo datasets (as requested: "Mode Démo par défaut si aucun token")
     const demoProjects: Project[] = [
       {
@@ -86,7 +92,33 @@ export default function ShowcaseCarousel({ limit }: { limit?: number }) {
       }
     ];
 
+    // If the user does NOT have tokens, load from Supabase database showcase-projects-data record!
     if (!vToken && (!ghUser || ghUser === 'Démo')) {
+      try {
+        const items = await adapter.getItems();
+        const showcaseRecord = items.find(item => item.id === 'showcase-projects-data');
+        if (showcaseRecord) {
+          const rawDesc = showcaseRecord.description || '';
+          const parsed = JSON.parse(rawDesc);
+          if (Array.isArray(parsed)) {
+            // Filter out private projects if the active user doesn't own them
+            const filtered = parsed.filter((p: any) => {
+              if (p.isPrivate) {
+                const authorClean = (p.commitAuthor || '').toLowerCase().trim();
+                const userClean = currentUserName.toLowerCase().trim();
+                return authorClean.includes(userClean) || userClean.includes(authorClean);
+              }
+              return true;
+            });
+            setProjects(filtered);
+            setLoading(false);
+            return;
+          }
+        }
+      } catch (e) {
+        console.error("Failed to load shared showcase projects:", e);
+      }
+      
       setProjects(demoProjects);
       setLoading(false);
       return;
@@ -104,7 +136,7 @@ export default function ShowcaseCarousel({ limit }: { limit?: number }) {
 
         const apiUrl = token 
           ? 'https://api.github.com/user/repos?sort=updated&per_page=12'
-          : `https://api.github.com/users/${ghUser}/repos?sort=updated&per_page=12`;
+          : `https://api.github.com/users/${ghUser.trim()}/repos?sort=updated&per_page=12`;
 
         const res = await fetch(apiUrl, { headers });
         if (res.ok) {
@@ -125,7 +157,6 @@ export default function ShowcaseCarousel({ limit }: { limit?: number }) {
 
       // 3. Map both datasets
       const mapped: Project[] = ghRepos.map((repo: any) => {
-        // Try to match a Vercel project by name
         const matchedVercel = vercelProjs.find(
           (vp: any) => vp.name.toLowerCase() === repo.name.toLowerCase() || 
                        (vp.link?.repoName && vp.link.repoName.toLowerCase() === repo.name.toLowerCase())
@@ -147,7 +178,6 @@ export default function ShowcaseCarousel({ limit }: { limit?: number }) {
           else if (vStatus === 'BUILDING') deployStatus = 'BUILDING';
           else if (vStatus === 'ERROR') deployStatus = 'ERROR';
           
-          // Get metadata if possible
           const lastMeta = matchedVercel.targets?.production?.meta;
           if (lastMeta) {
             commitMsg = lastMeta.githubCommitMessage || '';
@@ -156,9 +186,6 @@ export default function ShowcaseCarousel({ limit }: { limit?: number }) {
           }
         }
 
-        // Preview images strategy:
-        // Priority 1: Live site og:image (using general query) or Screenshot URL
-        // Priority 2: Fallback color gradient
         const previewUrl = liveUrl 
           ? `https://image.thum.io/get/width/1280/crop/800/${liveUrl}`
           : `linear-gradient(135deg, #1B1B1B 0%, #8C8A85 100%)`;
@@ -182,7 +209,48 @@ export default function ShowcaseCarousel({ limit }: { limit?: number }) {
       if (mapped.length === 0) {
         setProjects(demoProjects);
       } else {
-        setProjects(mapped);
+        // Sync with existing Supabase record to preserve private states
+        let finalProjects = [...mapped];
+        try {
+          const items = await adapter.getItems();
+          const showcaseRecord = items.find(item => item.id === 'showcase-projects-data');
+          if (showcaseRecord) {
+            const existingProjects = JSON.parse(showcaseRecord.description);
+            if (Array.isArray(existingProjects)) {
+              finalProjects = mapped.map(p => {
+                const matched = existingProjects.find(ep => ep.name === p.name);
+                return matched ? { ...p, isPrivate: matched.isPrivate } : p;
+              });
+            }
+          }
+        } catch (e) {}
+
+        // Save synced projects to Supabase database
+        try {
+          await adapter.saveItem({
+            id: 'showcase-projects-data',
+            title: 'Showcase Projects Data',
+            description: JSON.stringify(finalProjects),
+            category: 'frontend',
+            column: 'completed',
+            author: 'Aymane',
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            votes: 0
+          });
+        } catch (e) {}
+
+        // Filter out private projects if the active user doesn't own them
+        const filtered = finalProjects.filter((p: any) => {
+          if (p.isPrivate) {
+            const authorClean = (p.commitAuthor || '').toLowerCase().trim();
+            const userClean = currentUserName.toLowerCase().trim();
+            return authorClean.includes(userClean) || userClean.includes(authorClean);
+          }
+          return true;
+        });
+
+        setProjects(filtered);
       }
     } catch (e) {
       setProjects(demoProjects);
@@ -427,6 +495,57 @@ export default function ShowcaseCarousel({ limit }: { limit?: number }) {
                     </span>
                   </div>
                 )}
+
+                {/* Visibilité Privée */}
+                <div className="flex items-center justify-between border-t border-[#ECEAE3]/60 pt-3 mt-1">
+                  <span className="text-[9.5px] font-mono uppercase font-bold text-[#8C8A85]">Visibilité</span>
+                  <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                    <input 
+                      type="checkbox"
+                      checked={selectedProjectForPreview.isPrivate || false}
+                      onChange={async (e) => {
+                        const updatedProj = { ...selectedProjectForPreview, isPrivate: e.target.checked };
+                        setSelectedProjectForPreview(updatedProj);
+                        
+                        // Update in local projects list
+                        const updatedList = projects.map(p => p.name === updatedProj.name ? updatedProj : p);
+                        setProjects(updatedList);
+                        
+                        // Save back to Supabase
+                        try {
+                          const adapter = getStorageAdapter();
+                          const items = await adapter.getItems();
+                          const showcaseRecord = items.find(item => item.id === 'showcase-projects-data');
+                          let listToSave = updatedList;
+                          if (showcaseRecord) {
+                            const dbList = JSON.parse(showcaseRecord.description);
+                            if (Array.isArray(dbList)) {
+                              listToSave = dbList.map(p => p.name === updatedProj.name ? updatedProj : p);
+                            }
+                          }
+                          
+                          await adapter.saveItem({
+                            id: 'showcase-projects-data',
+                            title: 'Showcase Projects Data',
+                            description: JSON.stringify(listToSave),
+                            category: 'frontend',
+                            column: 'completed',
+                            author: 'Aymane',
+                            createdAt: new Date().toISOString(),
+                            updatedAt: new Date().toISOString(),
+                            votes: 0
+                          });
+                        } catch (err) {
+                          console.error("Failed to update project visibility:", err);
+                        }
+                      }}
+                      className="rounded border-[#ECEAE3] text-[#1B1B1B] focus:ring-0 cursor-pointer w-4 h-4"
+                    />
+                    <span className="text-[10px] font-mono text-zinc-500 font-bold uppercase">
+                      {selectedProjectForPreview.isPrivate ? '🔓 Privé' : '🌐 Public'}
+                    </span>
+                  </label>
+                </div>
               </div>
 
               {/* Description */}

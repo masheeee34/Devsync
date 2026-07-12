@@ -5,6 +5,7 @@ import { Idea, TaskColumn } from '@/types';
 import { getStorageAdapter } from '@/lib/storage';
 import { useIsMobile } from '@/lib/useIsMobile';
 import BottomSheet from '@/components/BottomSheet';
+import { getActiveProfile } from '@/lib/auth';
 
 export default function Kanban() {
   const isMobile = useIsMobile();
@@ -26,6 +27,7 @@ export default function Kanban() {
   const [author, setAuthor] = useState<Idea['author']>('Aymane');
   const [githubRepoUrl, setGithubRepoUrl] = useState('');
   const [projectUrl, setProjectUrl] = useState('');
+  const [isPrivateForm, setIsPrivateForm] = useState(false);
   const [formColumn, setFormColumn] = useState<TaskColumn>('ideas');
 
   // Notion visual views & actions state
@@ -41,7 +43,31 @@ export default function Kanban() {
   useEffect(() => {
     const adapter = getStorageAdapter();
     const unsubscribe = adapter.subscribe((items) => {
-      setIdeas(items);
+      // Process items to detect and clean [PRIVATE] suffix
+      const processed = items.map(item => {
+        const hasPrivateTag = (item.description || '').endsWith('\n\n[PRIVATE]');
+        return {
+          ...item,
+          isPrivate: hasPrivateTag,
+          description: hasPrivateTag 
+            ? item.description.slice(0, -12) 
+            : item.description
+        };
+      });
+
+      // Filter out private ideas that belong to other authors
+      const activeProfile = getActiveProfile();
+      const currentUserName = activeProfile ? activeProfile.name : 'Aymane';
+
+      const filtered = processed.filter(item => {
+        if (item.id === 'showcase-projects-data') return false; // Filter out showcase projects record
+        if (item.isPrivate) {
+          return item.author === currentUserName;
+        }
+        return true;
+      });
+
+      setIdeas(filtered);
     });
 
     const savedVotes = localStorage.getItem('devsync-voted-ideas');
@@ -70,6 +96,24 @@ export default function Kanban() {
     };
   }, []);
 
+  const saveIdeaHelper = async (idea: Idea) => {
+    let desc = idea.description;
+    const hasTag = desc.endsWith('\n\n[PRIVATE]');
+    if (idea.isPrivate && !hasTag) {
+      desc = `${desc}\n\n[PRIVATE]`;
+    } else if (!idea.isPrivate && hasTag) {
+      desc = desc.slice(0, -12);
+    }
+    
+    const ideaToSave = {
+      ...idea,
+      description: desc
+    };
+    
+    const adapter = getStorageAdapter();
+    await adapter.saveItem(ideaToSave);
+  };
+
   const handleAddIdea = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!title.trim() || !description.trim()) return;
@@ -86,10 +130,10 @@ export default function Kanban() {
       votes: 0,
       githubRepoUrl: githubRepoUrl.trim() || undefined,
       projectUrl: projectUrl.trim() || undefined,
+      isPrivate: isPrivateForm
     };
 
-    const adapter = getStorageAdapter();
-    await adapter.saveItem(newIdea);
+    await saveIdeaHelper(newIdea);
 
     // Reset Form
     setTitle('');
@@ -97,6 +141,7 @@ export default function Kanban() {
     setCategory('frontend');
     setGithubRepoUrl('');
     setProjectUrl('');
+    setIsPrivateForm(false);
     setFormColumn('ideas');
     setShowAddForm(false);
   };
@@ -117,8 +162,7 @@ export default function Kanban() {
         column: columns[nextIndex],
         updatedAt: new Date().toISOString(),
       };
-      const adapter = getStorageAdapter();
-      await adapter.saveItem(updatedIdea);
+      await saveIdeaHelper(updatedIdea);
     }
   };
 
@@ -153,8 +197,7 @@ export default function Kanban() {
       window.navigator.vibrate(40);
     }
 
-    const adapter = getStorageAdapter();
-    await adapter.saveItem(updatedIdea);
+    await saveIdeaHelper(updatedIdea);
   };
 
   const fetchGitHubReposForImport = async () => {
@@ -213,14 +256,12 @@ export default function Kanban() {
       githubRepoUrl: repo.html_url
     };
 
-    const adapter = getStorageAdapter();
-    await adapter.saveItem(newIdea);
+    await saveIdeaHelper(newIdea);
     setShowGitHubImportModal(false);
   };
 
   const handleUpdateIdeaFromPeek = async (updated: Idea) => {
-    const adapter = getStorageAdapter();
-    await adapter.saveItem(updated);
+    await saveIdeaHelper(updated);
     setSelectedIdeaForPeek(updated);
   };
 
@@ -608,6 +649,25 @@ export default function Kanban() {
                     className="bg-white border border-[#ECEAE3] rounded-xl px-2.5 py-1 text-xs text-[#1B1B1B] focus:outline-none focus:border-[#1B1B1B] w-full max-w-[180px] font-mono text-[10.5px]"
                   />
                 </div>
+
+                {/* Visibilité Privée */}
+                <div className="flex items-center justify-between gap-2 border-t border-[#ECEAE3]/60 pt-3 mt-1">
+                  <span className="text-[9.5px] font-mono uppercase font-bold text-[#8C8A85] w-24">Visibilité</span>
+                  <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                    <input 
+                      type="checkbox"
+                      checked={selectedIdeaForPeek.isPrivate || false}
+                      onChange={(e) => {
+                        const updated = { ...selectedIdeaForPeek, isPrivate: e.target.checked };
+                        handleUpdateIdeaFromPeek(updated);
+                      }}
+                      className="rounded border-[#ECEAE3] text-[#1B1B1B] focus:ring-0 cursor-pointer w-4 h-4"
+                    />
+                    <span className="text-[10px] font-mono text-zinc-500 font-bold uppercase">
+                      {selectedIdeaForPeek.isPrivate ? '🔓 Privé' : '🌐 Public'}
+                    </span>
+                  </label>
+                </div>
               </div>
 
               {/* Description */}
@@ -994,6 +1054,17 @@ export default function Kanban() {
           <option value="progress">En cours</option>
           <option value="completed">Terminé</option>
         </select>
+      </div>
+
+      <div className="flex items-center gap-2 py-1 select-none">
+        <input 
+          id="form-private"
+          type="checkbox"
+          checked={isPrivateForm}
+          onChange={(e) => setIsPrivateForm(e.target.checked)}
+          className="rounded border-[#ECEAE3] text-[#1B1B1B] focus:ring-0 focus:ring-offset-0 cursor-pointer w-4 h-4"
+        />
+        <label htmlFor="form-private" className="text-[10px] font-mono uppercase tracking-wider text-[#8C8A85] cursor-pointer font-bold">Rendre cette idée privée</label>
       </div>
 
       <div className="flex flex-col gap-1.5">
