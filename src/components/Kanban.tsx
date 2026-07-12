@@ -243,7 +243,7 @@ export default function Kanban() {
             <div className="w-full h-24 rounded-2xl overflow-hidden relative border border-[#ECEAE3] mt-0.5 select-none pointer-events-none">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img 
-                src={`https://image.thum.io/get/auth/21885-devsync/width/600/crop/800/${idea.projectUrl}`}
+                src={`https://image.thum.io/get/width/600/crop/800/${idea.projectUrl}`}
                 alt={idea.title}
                 className="w-full h-full object-cover"
                 loading="lazy"

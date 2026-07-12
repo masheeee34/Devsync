@@ -159,7 +159,7 @@ export default function ShowcaseCarousel({ limit }: { limit?: number }) {
         // Priority 1: Live site og:image (using general query) or Screenshot URL
         // Priority 2: Fallback color gradient
         const previewUrl = liveUrl 
-          ? `https://image.thum.io/get/auth/21885-devsync/width/600/crop/800/${liveUrl}`
+          ? `https://image.thum.io/get/width/600/crop/800/${liveUrl}`
           : `linear-gradient(135deg, #1B1B1B 0%, #8C8A85 100%)`;
 
         return {

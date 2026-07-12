@@ -271,6 +271,8 @@ export class SupabaseAdapter implements StorageAdapter {
       createdAt: row.created_at,
       updatedAt: row.updated_at,
       votes: row.votes || 0,
+      githubRepoUrl: row.github_repo_url || undefined,
+      projectUrl: row.project_url || undefined,
     }));
   }
   async saveItem(idea: Idea): Promise<void> {
@@ -284,7 +286,9 @@ export class SupabaseAdapter implements StorageAdapter {
       author: idea.author,
       updated_at: new Date().toISOString(),
       votes: idea.votes,
-      created_at: idea.createdAt || new Date().toISOString()
+      created_at: idea.createdAt || new Date().toISOString(),
+      github_repo_url: idea.githubRepoUrl || null,
+      project_url: idea.projectUrl || null,
     });
   }
   async deleteItem(id: string): Promise<void> {
@@ -471,6 +475,10 @@ export class SupabaseAdapter implements StorageAdapter {
   }
 }
 
+// Global instances for singleton pattern
+let localAdapterInstance: LocalAdapter | null = null;
+let supabaseAdapterInstance: SupabaseAdapter | null = null;
+
 // Dynamic Factory
 export function getStorageAdapter(): StorageAdapter {
   if (typeof window === 'undefined') {
@@ -482,8 +490,14 @@ export function getStorageAdapter(): StorageAdapter {
   const modeOverride = localStorage.getItem('devsync-db-mode-override');
 
   if (url && key && modeOverride !== 'local') {
-    return new SupabaseAdapter();
+    if (!supabaseAdapterInstance) {
+      supabaseAdapterInstance = new SupabaseAdapter();
+    }
+    return supabaseAdapterInstance;
   }
 
-  return new LocalAdapter();
+  if (!localAdapterInstance) {
+    localAdapterInstance = new LocalAdapter();
+  }
+  return localAdapterInstance;
 }
