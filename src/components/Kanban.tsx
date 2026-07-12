@@ -416,7 +416,7 @@ export default function Kanban() {
         />
 
         {/* Immersive Dual-Pane Explorer Modal */}
-        <div className="fixed inset-4 sm:inset-6 md:inset-10 z-50 bg-[#F4F3F0] border border-[#ECEAE3] rounded-3xl shadow-2xl flex flex-col md:flex-row overflow-hidden relative animate-in zoom-in-95 duration-200">
+        <div className="fixed inset-4 sm:inset-6 md:inset-10 z-50 bg-[#F4F3F0] border border-[#ECEAE3] rounded-3xl shadow-2xl flex flex-col md:flex-row overflow-hidden animate-in zoom-in-95 duration-200">
           
           {/* Close button in top corner */}
           <button 
