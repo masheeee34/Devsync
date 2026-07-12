@@ -412,11 +412,11 @@ export default function Kanban() {
         {/* Immersive backdrop */}
         <div 
           onClick={() => setSelectedIdeaForPeek(null)}
-          className="fixed inset-0 z-45 bg-[#161616]/75 backdrop-blur-xs animate-in fade-in duration-250"
+          className="fixed inset-0 z-[100] bg-[#161616]/75 backdrop-blur-xs animate-in fade-in duration-250"
         />
 
         {/* Immersive Dual-Pane Explorer Modal */}
-        <div className="fixed inset-4 sm:inset-6 md:inset-10 z-50 bg-[#F4F3F0] border border-[#ECEAE3] rounded-3xl shadow-2xl flex flex-col md:flex-row overflow-hidden animate-in zoom-in-95 duration-200">
+        <div className="fixed inset-4 sm:inset-6 md:inset-10 z-[110] bg-[#F4F3F0] border border-[#ECEAE3] rounded-3xl shadow-2xl flex flex-col md:flex-row overflow-hidden animate-in zoom-in-95 duration-200">
           
           {/* Close button in top corner */}
           <button 
